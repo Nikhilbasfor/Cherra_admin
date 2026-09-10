@@ -14,6 +14,15 @@ import {
 
 const USER_API_BASE = process.env.NEXT_PUBLIC_USER_API_URL || "http://localhost:3000";
 
+function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 // ----------------- HOTELS -----------------
 
 export async function fetchAdminHotels(): Promise<Hotel[]> {
@@ -21,7 +30,7 @@ export async function fetchAdminHotels(): Promise<Hotel[]> {
     try {
       const col = collection(db, "hotels");
       const q = query(col, orderBy("rating", "desc"));
-      const snapshot = await getDocs(q);
+      const snapshot = await withTimeout(getDocs(q), 2500);
       if (!snapshot.empty) {
         return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Hotel));
       }
@@ -46,7 +55,7 @@ export async function fetchAdminHotels(): Promise<Hotel[]> {
 export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
   if (db && isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true });
+      await withTimeout(setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true }), 2500);
     } catch (err) {
       console.warn("Firestore save hotel error:", err);
     }
@@ -68,7 +77,7 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
 export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
   if (db && isFirebaseConfigured) {
     try {
-      await deleteDoc(doc(db, "hotels", hotelId));
+      await withTimeout(deleteDoc(doc(db, "hotels", hotelId)), 2500);
     } catch (err) {
       console.warn("Firestore delete hotel error:", err);
     }
@@ -92,7 +101,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     try {
       const col = collection(db, "inquiries");
       const q = query(col, orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(q);
+      const snapshot = await withTimeout(getDocs(q), 2500);
       if (!snapshot.empty) {
         return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as InquiryLead));
       }
@@ -117,7 +126,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
 export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryLead> {
   if (db && isFirebaseConfigured) {
     try {
-      await setDoc(doc(db, "inquiries", inquiry.id), inquiry, { merge: true });
+      await withTimeout(setDoc(doc(db, "inquiries", inquiry.id), inquiry, { merge: true }), 2500);
     } catch (err) {
       console.warn("Firestore update inquiry error:", err);
     }
