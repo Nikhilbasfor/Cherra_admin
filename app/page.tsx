@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Building2,
@@ -15,6 +15,7 @@ import {
   Search,
   Sparkles,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
@@ -22,11 +23,19 @@ import HotelModal from "@/components/HotelModal";
 import LeadDetailModal from "@/components/LeadDetailModal";
 import { INITIAL_HOTELS, INITIAL_LEADS } from "@/lib/initialData";
 import { Hotel, InquiryLead } from "@/lib/types";
+import {
+  fetchAdminHotels,
+  saveAdminHotel,
+  deleteAdminHotel,
+  fetchAdminInquiries,
+  updateAdminInquiry,
+} from "@/lib/api";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "hotels" | "leads" | "seo">("dashboard");
   const [hotels, setHotels] = useState<Hotel[]>(INITIAL_HOTELS);
   const [leads, setLeads] = useState<InquiryLead[]>(INITIAL_LEADS);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [isHotelModalOpen, setIsHotelModalOpen] = useState(false);
   const [hotelToEdit, setHotelToEdit] = useState<Hotel | null>(null);
@@ -36,6 +45,30 @@ export default function AdminDashboard() {
 
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
+
+  // Load live data from Backend / Firestore
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [hList, iList] = await Promise.all([
+        fetchAdminHotels(),
+        fetchAdminInquiries(),
+      ]);
+      if (hList && hList.length > 0) setHotels(hList);
+      if (iList && iList.length > 0) setLeads(iList);
+    } catch (err) {
+      console.warn("Error loading backend data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    // Auto refresh every 10 seconds to catch new incoming leads from User site
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleOpenAddHotel = () => {
     setHotelToEdit(null);
@@ -47,13 +80,14 @@ export default function AdminDashboard() {
     setIsHotelModalOpen(true);
   };
 
-  const handleDeleteHotel = (hotelId: string) => {
+  const handleDeleteHotel = async (hotelId: string) => {
     if (confirm("Are you sure you want to remove this hotel from the directory?")) {
       setHotels((prev) => prev.filter((h) => h.id !== hotelId));
+      await deleteAdminHotel(hotelId);
     }
   };
 
-  const handleSaveHotel = (saved: Hotel) => {
+  const handleSaveHotel = async (saved: Hotel) => {
     setHotels((prev) => {
       const exists = prev.some((h) => h.id === saved.id);
       if (exists) {
@@ -61,6 +95,7 @@ export default function AdminDashboard() {
       }
       return [saved, ...prev];
     });
+    await saveAdminHotel(saved);
   };
 
   const handleOpenLead = (lead: InquiryLead) => {
@@ -68,9 +103,10 @@ export default function AdminDashboard() {
     setIsLeadModalOpen(true);
   };
 
-  const handleUpdateLead = (updated: InquiryLead) => {
+  const handleUpdateLead = async (updated: InquiryLead) => {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     setSelectedLead(updated);
+    await updateAdminInquiry(updated);
   };
 
   const filteredLeads = leads.filter((l) => {
@@ -122,7 +158,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-200 mb-6">
           <div>
             <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
-              CherraStays Back-Office
+              CherraStays Back-Office (Live Backend Connected)
             </span>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
               {activeTab === "dashboard" && "Management Dashboard"}
@@ -133,6 +169,15 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={loadData}
+              disabled={isLoading}
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs shadow-xs"
+              title="Sync with Backend"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-emerald-600" : ""}`} />
+            </button>
+
             {activeTab === "hotels" && (
               <button
                 onClick={handleOpenAddHotel}
@@ -162,8 +207,8 @@ export default function AdminDashboard() {
               <StatCard
                 title="Active Hotels"
                 value={hotels.length}
-                subtitle="All in Sohra / Cherrapunji"
-                change="+1 this month"
+                subtitle="Live in database"
+                change="Connected"
                 icon={Building2}
                 iconColor="text-emerald-700"
               />
@@ -178,7 +223,7 @@ export default function AdminDashboard() {
               <StatCard
                 title="Lead Conversion Rate"
                 value={`${conversionRate}%`}
-                subtitle={`${convertedLeads} successful bookings`}
+                subtitle={`${convertedLeads} confirmed stays`}
                 change="+4% increase"
                 icon={TrendingUp}
                 iconColor="text-teal-700"
@@ -197,7 +242,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">Inquiry Pipeline Status</h3>
-                  <p className="text-xs text-slate-500">Current progress of all customer inquiries</p>
+                  <p className="text-xs text-slate-500">Live progress of customer inquiries from User site</p>
                 </div>
                 <button
                   onClick={() => setActiveTab("leads")}
@@ -288,9 +333,9 @@ export default function AdminDashboard() {
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Listed Properties in Cherrapunji</h3>
+                  <h3 className="font-bold text-slate-900 text-base">Listed Properties in Cherrapunji ({hotels.length})</h3>
                   <p className="text-xs text-slate-500">
-                    Update room pricing, photos, and star classifications
+                    Edits made here are saved directly to the backend and reflect on the User website
                   </p>
                 </div>
                 <button
@@ -376,7 +421,7 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">Inquiry Pipeline & Lead Tracker</h3>
                   <p className="text-xs text-slate-500">
-                    Manage incoming tourist inquiries and send WhatsApp quotes
+                    Live booking inquiries submitted from the User website
                   </p>
                 </div>
 
