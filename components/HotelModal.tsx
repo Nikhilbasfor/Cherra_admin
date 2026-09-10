@@ -73,6 +73,18 @@ function HotelModalContent({
   const [amenities, setAmenities] = useState<string[]>(
     hotelToEdit?.amenities || ["Free High-Speed Wi-Fi", "Geyser / 24hr Hot Water", "Private Balcony"]
   );
+  const [checkInTime, setCheckInTime] = useState(hotelToEdit?.checkInTime || "14:00");
+  const [checkOutTime, setCheckOutTime] = useState(hotelToEdit?.checkOutTime || "11:00");
+  const [phone, setPhone] = useState(hotelToEdit?.phone || "+91 87947 12345");
+  const [email, setEmail] = useState(hotelToEdit?.email || "bookings@cherrapunjistays.com");
+  const [distanceToCenter, setDistanceToCenter] = useState(
+    hotelToEdit?.distanceToCenter || "2.5 km from Sohra Market"
+  );
+  const [highlights, setHighlights] = useState<string>(
+    hotelToEdit?.highlights && hotelToEdit.highlights.length > 0
+      ? hotelToEdit.highlights.join(", ")
+      : "Panoramic valley views, Direct property booking, Zero platform fees"
+  );
   const [rooms, setRooms] = useState<Room[]>(
     hotelToEdit?.rooms && hotelToEdit.rooms.length > 0
       ? hotelToEdit.rooms
@@ -126,6 +138,11 @@ function HotelModalContent({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedHighlights = highlights
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const finalHotel: Hotel = {
       id: hotelToEdit ? hotelToEdit.id : slug || "hotel-" + Date.now(),
       name,
@@ -148,11 +165,15 @@ function HotelModalContent({
       amenities,
       rooms,
       description,
-      highlights: hotelToEdit?.highlights || ["Panoramic views", "Direct booking guarantee"],
-      checkInTime: "14:00",
-      checkOutTime: "11:00",
-      phone: "+91 87947 12345",
-      email: "bookings@cherrapunjistays.com",
+      highlights:
+        parsedHighlights.length > 0
+          ? parsedHighlights
+          : ["Panoramic views", "Direct booking guarantee"],
+      checkInTime: checkInTime.trim() || "14:00",
+      checkOutTime: checkOutTime.trim() || "11:00",
+      distanceToCenter: distanceToCenter.trim() || "Central Sohra",
+      phone: phone.trim() || "+91 87947 12345",
+      email: email.trim() || "bookings@cherrapunjistays.com",
     };
 
     onSave(finalHotel);
@@ -302,6 +323,83 @@ function HotelModalContent({
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
               />
             </div>
+          </div>
+
+          {/* Check-in & Check-out Times */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">Check-in Time *</label>
+              <input
+                type="text"
+                required
+                value={checkInTime}
+                onChange={(e) => setCheckInTime(e.target.value)}
+                placeholder="e.g. 14:00 or 1:00 PM"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">Check-out Time *</label>
+              <input
+                type="text"
+                required
+                value={checkOutTime}
+                onChange={(e) => setCheckOutTime(e.target.value)}
+                placeholder="e.g. 11:00 or 11:00 AM"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Contact Phone & Email */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">Contact Phone / WhatsApp *</label>
+              <input
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 87947 12345"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="stay@cherrapunji.com"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Distance to Center / Hub */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1">Location Hub / Distance to Center</label>
+            <input
+              type="text"
+              value={distanceToCenter}
+              onChange={(e) => setDistanceToCenter(e.target.value)}
+              placeholder="e.g. 2.5 km from Sohra Market, near Nohkalikai Falls"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+            />
+          </div>
+
+          {/* Property Highlights */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1">
+              Property Highlights (Separate with commas)
+            </label>
+            <input
+              type="text"
+              value={highlights}
+              onChange={(e) => setHighlights(e.target.value)}
+              placeholder="Panoramic waterfall view, Direct Khasi dining, Zero platform fees"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+            />
           </div>
 
           {/* Image URL */}
