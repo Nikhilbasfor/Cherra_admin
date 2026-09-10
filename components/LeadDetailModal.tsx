@@ -29,6 +29,24 @@ export default function LeadDetailModal({
 }: LeadDetailModalProps) {
   if (!isOpen || !lead) return null;
 
+  return (
+    <LeadDetailContent
+      lead={lead}
+      onClose={onClose}
+      onUpdateLead={onUpdateLead}
+    />
+  );
+}
+
+function LeadDetailContent({
+  lead,
+  onClose,
+  onUpdateLead,
+}: {
+  lead: InquiryLead;
+  onClose: () => void;
+  onUpdateLead: (updated: InquiryLead) => void;
+}) {
   const [currentStatus, setCurrentStatus] = useState(lead.status);
   const [newNoteText, setNewNoteText] = useState("");
   const [notes, setNotes] = useState<FollowUpNote[]>(lead.notes || []);

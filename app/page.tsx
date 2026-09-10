@@ -64,10 +64,29 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    loadData();
+    let isMounted = true;
+    const fetchLatest = async () => {
+      try {
+        const [hList, iList] = await Promise.all([
+          fetchAdminHotels(),
+          fetchAdminInquiries(),
+        ]);
+        if (isMounted) {
+          if (hList && hList.length > 0) setHotels(hList);
+          if (iList && iList.length > 0) setLeads(iList);
+        }
+      } catch (err) {
+        console.warn("Error loading backend data:", err);
+      }
+    };
+
+    fetchLatest();
     // Auto refresh every 10 seconds to catch new incoming leads from User site
-    const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchLatest, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleOpenAddHotel = () => {
@@ -568,15 +587,15 @@ export default function AdminDashboard() {
                   </span>
                   <div className="space-y-1 text-xs text-slate-700">
                     <p className="flex items-center justify-between">
-                      <span>• "hotels in cherrapunji"</span>
+                      <span>• &quot;hotels in cherrapunji&quot;</span>
                       <span className="text-emerald-700 font-semibold">Optimized (SSR)</span>
                     </p>
                     <p className="flex items-center justify-between">
-                      <span>• "3 star hotels cherrapunji"</span>
+                      <span>• &quot;3 star hotels cherrapunji&quot;</span>
                       <span className="text-emerald-700 font-semibold">Optimized</span>
                     </p>
                     <p className="flex items-center justify-between">
-                      <span>• "resorts in cherrapunji"</span>
+                      <span>• &quot;resorts in cherrapunji&quot;</span>
                       <span className="text-emerald-700 font-semibold">Optimized</span>
                     </p>
                   </div>

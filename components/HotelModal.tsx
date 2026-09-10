@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { X, Building2, Plus, Trash2, Check } from "lucide-react";
 import { Hotel, Room } from "@/lib/types";
 
@@ -30,80 +30,63 @@ export default function HotelModal({
   hotelToEdit,
   onSave,
 }: HotelModalProps) {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [starRating, setStarRating] = useState<1 | 2 | 3 | 4 | 5>(3);
-  const [pricePerNight, setPricePerNight] = useState<number>(3500);
-  const [originalPrice, setOriginalPrice] = useState<number>(4200);
-  const [area, setArea] = useState("Sohra Town");
-  const [address, setAddress] = useState("");
-  const [lat, setLat] = useState(25.2638);
-  const [lng, setLng] = useState(91.7289);
-  const [imageUrl, setImageUrl] = useState("");
-  const [featured, setFeatured] = useState(false);
-  const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [description, setDescription] = useState("");
-  const [amenities, setAmenities] = useState<string[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([
-    {
-      id: "r1",
-      name: "Standard Deluxe Room",
-      price: 3500,
-      capacity: "2 Adults",
-      beds: "1 Queen Bed",
-      features: ["Hot Water", "Balcony View"],
-    },
-  ]);
-
-  useEffect(() => {
-    if (hotelToEdit) {
-      setName(hotelToEdit.name);
-      setSlug(hotelToEdit.slug);
-      setTagline(hotelToEdit.tagline);
-      setStarRating(hotelToEdit.starRating);
-      setPricePerNight(hotelToEdit.pricePerNight);
-      setOriginalPrice(hotelToEdit.originalPrice);
-      setArea(hotelToEdit.area);
-      setAddress(hotelToEdit.address);
-      setLat(hotelToEdit.coordinates.lat);
-      setLng(hotelToEdit.coordinates.lng);
-      setImageUrl(hotelToEdit.images[0] || "");
-      setFeatured(hotelToEdit.featured);
-      setStatus(hotelToEdit.status || "active");
-      setDescription(hotelToEdit.description);
-      setAmenities(hotelToEdit.amenities);
-      setRooms(hotelToEdit.rooms);
-    } else {
-      setName("");
-      setSlug("");
-      setTagline("");
-      setStarRating(3);
-      setPricePerNight(3500);
-      setOriginalPrice(4200);
-      setArea("Sohra Town");
-      setAddress("Sohra, Cherrapunji, Meghalaya 793108");
-      setLat(25.275);
-      setLng(91.721);
-      setImageUrl("https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80");
-      setFeatured(false);
-      setStatus("active");
-      setDescription("A serene and comfortable stay in Cherrapunji with scenic nature views.");
-      setAmenities(["Free High-Speed Wi-Fi", "Geyser / 24hr Hot Water", "Private Balcony"]);
-      setRooms([
-        {
-          id: "r-" + Date.now(),
-          name: "Deluxe View Room",
-          price: 3500,
-          capacity: "2 Adults",
-          beds: "1 Queen Bed",
-          features: ["Hot Water", "Balcony"],
-        },
-      ]);
-    }
-  }, [hotelToEdit, isOpen]);
-
   if (!isOpen) return null;
+
+  return (
+    <HotelModalContent
+      key={hotelToEdit?.id ?? "new"}
+      onClose={onClose}
+      hotelToEdit={hotelToEdit}
+      onSave={onSave}
+    />
+  );
+}
+
+function HotelModalContent({
+  onClose,
+  hotelToEdit,
+  onSave,
+}: {
+  onClose: () => void;
+  hotelToEdit?: Hotel | null;
+  onSave: (hotel: Hotel) => void;
+}) {
+  const [name, setName] = useState(hotelToEdit?.name || "");
+  const [slug, setSlug] = useState(hotelToEdit?.slug || "");
+  const [tagline, setTagline] = useState(hotelToEdit?.tagline || "");
+  const [starRating, setStarRating] = useState<1 | 2 | 3 | 4 | 5>(hotelToEdit?.starRating || 3);
+  const [pricePerNight, setPricePerNight] = useState<number>(hotelToEdit?.pricePerNight || 3500);
+  const [originalPrice, setOriginalPrice] = useState<number>(hotelToEdit?.originalPrice || 4200);
+  const [area, setArea] = useState(hotelToEdit?.area || "Sohra Town");
+  const [address, setAddress] = useState(hotelToEdit?.address || "Sohra, Cherrapunji, Meghalaya 793108");
+  const [lat, setLat] = useState(hotelToEdit?.coordinates?.lat || 25.275);
+  const [lng, setLng] = useState(hotelToEdit?.coordinates?.lng || 91.721);
+  const [imageUrl, setImageUrl] = useState(
+    hotelToEdit?.images?.[0] ||
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+  );
+  const [featured, setFeatured] = useState(hotelToEdit?.featured || false);
+  const [status, setStatus] = useState<"active" | "inactive">(hotelToEdit?.status || "active");
+  const [description, setDescription] = useState(
+    hotelToEdit?.description || "A serene and comfortable stay in Cherrapunji with scenic nature views."
+  );
+  const [amenities, setAmenities] = useState<string[]>(
+    hotelToEdit?.amenities || ["Free High-Speed Wi-Fi", "Geyser / 24hr Hot Water", "Private Balcony"]
+  );
+  const [rooms, setRooms] = useState<Room[]>(
+    hotelToEdit?.rooms && hotelToEdit.rooms.length > 0
+      ? hotelToEdit.rooms
+      : [
+          {
+            id: "r-default-1",
+            name: "Deluxe View Room",
+            price: 3500,
+            capacity: "2 Adults",
+            beds: "1 Queen Bed",
+            features: ["Hot Water", "Balcony"],
+          },
+        ]
+  );
 
   const handleNameChange = (val: string) => {
     setName(val);
