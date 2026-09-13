@@ -7,14 +7,20 @@ import {
   Users2,
   SearchCode,
   Mountain,
+  Compass,
+  HelpCircle,
   ExternalLink,
 } from "lucide-react";
 
+export type AdminTab = "dashboard" | "hotels" | "leads" | "attractions" | "faqs" | "seo";
+
 interface SidebarProps {
-  activeTab: "dashboard" | "hotels" | "leads" | "seo";
-  setActiveTab: (tab: "dashboard" | "hotels" | "leads" | "seo") => void;
+  activeTab: AdminTab;
+  setActiveTab: (tab: AdminTab) => void;
   leadsCount: number;
   hotelsCount: number;
+  attractionsCount?: number;
+  faqsCount?: number;
 }
 
 export default function Sidebar({
@@ -22,6 +28,8 @@ export default function Sidebar({
   setActiveTab,
   leadsCount,
   hotelsCount,
+  attractionsCount = 0,
+  faqsCount = 0,
 }: SidebarProps) {
   const menuItems = [
     {
@@ -42,8 +50,20 @@ export default function Sidebar({
       count: leadsCount,
     },
     {
+      id: "attractions",
+      label: "Sightseeing Attractions",
+      icon: Compass,
+      count: attractionsCount,
+    },
+    {
+      id: "faqs",
+      label: "FAQs & Guide Q&A",
+      icon: HelpCircle,
+      count: faqsCount,
+    },
+    {
       id: "seo",
-      label: "SEO & Search Engine Snippets",
+      label: "SEO & Rich Snippets",
       icon: SearchCode,
     },
   ];
@@ -75,7 +95,7 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() =>
-                  setActiveTab(item.id as "dashboard" | "hotels" | "leads" | "seo")
+                  setActiveTab(item.id as AdminTab)
                 }
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                   isActive

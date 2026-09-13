@@ -1,5 +1,5 @@
-import { Hotel, InquiryLead } from "./types";
-import { INITIAL_HOTELS, INITIAL_LEADS } from "./initialData";
+import { Hotel, InquiryLead, Attraction, FAQItem, SiteStats } from "./types";
+import { INITIAL_HOTELS, INITIAL_LEADS, INITIAL_ATTRACTIONS, INITIAL_FAQS, INITIAL_STATS } from "./initialData";
 import { db, isFirebaseConfigured } from "./firebase";
 import {
   collection,
@@ -143,3 +143,196 @@ export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryL
 
   return inquiry;
 }
+
+// ----------------- ATTRACTIONS -----------------
+
+export async function fetchAdminAttractions(): Promise<Attraction[]> {
+  if (db && isFirebaseConfigured) {
+    try {
+      const col = collection(db, "attractions");
+      const q = query(col, orderBy("rating", "desc"));
+      const snapshot = await withTimeout(getDocs(q), 2500);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Attraction));
+      }
+    } catch (err) {
+      console.warn("Firestore attractions fetch error:", err);
+    }
+  }
+
+  try {
+    const res = await fetch(`${USER_API_BASE}/api/attractions`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.warn("User API attractions fetch error:", err);
+  }
+
+  return INITIAL_ATTRACTIONS;
+}
+
+export async function saveAdminAttraction(attraction: Attraction): Promise<Attraction> {
+  if (db && isFirebaseConfigured) {
+    try {
+      await withTimeout(setDoc(doc(db, "attractions", attraction.id), attraction, { merge: true }), 2500);
+    } catch (err) {
+      console.warn("Firestore save attraction error:", err);
+    }
+  }
+
+  try {
+    await fetch(`${USER_API_BASE}/api/attractions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(attraction),
+    });
+  } catch (err) {
+    console.warn("User API save attraction error:", err);
+  }
+
+  return attraction;
+}
+
+export async function deleteAdminAttraction(attractionId: string): Promise<boolean> {
+  if (db && isFirebaseConfigured) {
+    try {
+      await withTimeout(deleteDoc(doc(db, "attractions", attractionId)), 2500);
+    } catch (err) {
+      console.warn("Firestore delete attraction error:", err);
+    }
+  }
+
+  try {
+    await fetch(`${USER_API_BASE}/api/attractions/${attractionId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("User API delete attraction error:", err);
+  }
+
+  return true;
+}
+
+// ----------------- FAQS -----------------
+
+export async function fetchAdminFAQs(): Promise<FAQItem[]> {
+  if (db && isFirebaseConfigured) {
+    try {
+      const col = collection(db, "faqs");
+      const q = query(col, orderBy("order", "asc"));
+      const snapshot = await withTimeout(getDocs(q), 2500);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as FAQItem));
+      }
+    } catch (err) {
+      console.warn("Firestore FAQs fetch error:", err);
+    }
+  }
+
+  try {
+    const res = await fetch(`${USER_API_BASE}/api/faqs`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.warn("User API FAQs fetch error:", err);
+  }
+
+  return INITIAL_FAQS;
+}
+
+export async function saveAdminFAQ(faq: FAQItem): Promise<FAQItem> {
+  if (db && isFirebaseConfigured) {
+    try {
+      await withTimeout(setDoc(doc(db, "faqs", faq.id), faq, { merge: true }), 2500);
+    } catch (err) {
+      console.warn("Firestore save FAQ error:", err);
+    }
+  }
+
+  try {
+    await fetch(`${USER_API_BASE}/api/faqs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(faq),
+    });
+  } catch (err) {
+    console.warn("User API save FAQ error:", err);
+  }
+
+  return faq;
+}
+
+export async function deleteAdminFAQ(faqId: string): Promise<boolean> {
+  if (db && isFirebaseConfigured) {
+    try {
+      await withTimeout(deleteDoc(doc(db, "faqs", faqId)), 2500);
+    } catch (err) {
+      console.warn("Firestore delete FAQ error:", err);
+    }
+  }
+
+  try {
+    await fetch(`${USER_API_BASE}/api/faqs/${faqId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("User API delete FAQ error:", err);
+  }
+
+  return true;
+}
+
+// ----------------- SITE STATS -----------------
+
+export async function fetchAdminStats(): Promise<SiteStats> {
+  if (db && isFirebaseConfigured) {
+    try {
+      const col = collection(db, "site_stats");
+      const snapshot = await withTimeout(getDocs(col), 2500);
+      if (!snapshot.empty) {
+        return snapshot.docs[0].data() as SiteStats;
+      }
+    } catch (err) {
+      console.warn("Firestore stats fetch error:", err);
+    }
+  }
+
+  try {
+    const res = await fetch(`${USER_API_BASE}/api/stats`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.verifiedStays) return data;
+    }
+  } catch (err) {
+    console.warn("User API stats fetch error:", err);
+  }
+
+  return INITIAL_STATS;
+}
+
+export async function saveAdminStats(stats: SiteStats): Promise<SiteStats> {
+  if (db && isFirebaseConfigured) {
+    try {
+      await withTimeout(setDoc(doc(db, "site_stats", "main"), stats, { merge: true }), 2500);
+    } catch (err) {
+      console.warn("Firestore save stats error:", err);
+    }
+  }
+
+  try {
+    await fetch(`${USER_API_BASE}/api/stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stats),
+    });
+  } catch (err) {
+    console.warn("User API save stats error:", err);
+  }
+
+  return stats;
+}
+

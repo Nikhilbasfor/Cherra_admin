@@ -75,7 +75,7 @@ function HotelModalContent({
   );
   const [checkInTime, setCheckInTime] = useState(hotelToEdit?.checkInTime || "14:00");
   const [checkOutTime, setCheckOutTime] = useState(hotelToEdit?.checkOutTime || "11:00");
-  const [phone, setPhone] = useState(hotelToEdit?.phone || "+91 87947 12345");
+  const [phone, setPhone] = useState(hotelToEdit?.phone || "+91 98648 79505");
   const [email, setEmail] = useState(hotelToEdit?.email || "bookings@cherrapunjistays.com");
   const [distanceToCenter, setDistanceToCenter] = useState(
     hotelToEdit?.distanceToCenter || "2.5 km from Sohra Market"
@@ -172,7 +172,7 @@ function HotelModalContent({
       checkInTime: checkInTime.trim() || "14:00",
       checkOutTime: checkOutTime.trim() || "11:00",
       distanceToCenter: distanceToCenter.trim() || "Central Sohra",
-      phone: phone.trim() || "+91 87947 12345",
+      phone: phone.trim() || "+91 98648 79505",
       email: email.trim() || "bookings@cherrapunjistays.com",
     };
 
@@ -360,7 +360,7 @@ function HotelModalContent({
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 87947 12345"
+                placeholder="+91 98648 79505"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
               />
             </div>
