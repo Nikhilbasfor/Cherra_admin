@@ -17,20 +17,20 @@ export default function StatsModal({
   onSave,
   currentStats,
 }: StatsModalProps) {
-  const [verifiedStays, setVerifiedStays] = useState(currentStats.verifiedStays || "25+");
+  const [verifiedStays, setVerifiedStays] = useState(currentStats.verifiedStays || "10+");
   const [satisfactionRate, setSatisfactionRate] = useState(
-    currentStats.satisfactionRate || "4.9 / 5.0"
+    currentStats.satisfactionRate || "4.8 / 5.0"
   );
   const [tariffPledge, setTariffPledge] = useState(currentStats.tariffPledge || "100%");
   const [avgResponseTime, setAvgResponseTime] = useState(
-    currentStats.avgResponseTime || "15 Min"
+    currentStats.avgResponseTime || "20 Min"
   );
 
   useEffect(() => {
-    setVerifiedStays(currentStats.verifiedStays || "25+");
-    setSatisfactionRate(currentStats.satisfactionRate || "4.9 / 5.0");
+    setVerifiedStays(currentStats.verifiedStays || "10+");
+    setSatisfactionRate(currentStats.satisfactionRate || "4.8 / 5.0");
     setTariffPledge(currentStats.tariffPledge || "100%");
-    setAvgResponseTime(currentStats.avgResponseTime || "15 Min");
+    setAvgResponseTime(currentStats.avgResponseTime || "20 Min");
   }, [currentStats, isOpen]);
 
   if (!isOpen) return null;
@@ -38,10 +38,10 @@ export default function StatsModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      verifiedStays: verifiedStays.trim() || "25+",
-      satisfactionRate: satisfactionRate.trim() || "4.9 / 5.0",
+      verifiedStays: verifiedStays.trim() || "10+",
+      satisfactionRate: satisfactionRate.trim() || "4.8 / 5.0",
       tariffPledge: tariffPledge.trim() || "100%",
-      avgResponseTime: avgResponseTime.trim() || "15 Min",
+      avgResponseTime: avgResponseTime.trim() || "20 Min",
     });
     onClose();
   };
