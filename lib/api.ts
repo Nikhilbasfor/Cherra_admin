@@ -173,6 +173,19 @@ export function normalizeInquiryLead(id: string, data: any): InquiryLead {
   };
 }
 
+function deduplicateLeads(leads: InquiryLead[]): InquiryLead[] {
+  const seen = new Set<string>();
+  const unique: InquiryLead[] = [];
+  for (const lead of leads) {
+    const key = `${lead.customerPhone}_${lead.hotelName}_${lead.checkIn}_${lead.checkOut}`.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(lead);
+    }
+  }
+  return unique;
+}
+
 export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
   if (db && isFirebaseConfigured) {
     try {
@@ -180,7 +193,8 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
       const q = query(col, orderBy("createdAt", "desc"));
       const snapshot = await withTimeout(getDocs(q), 2500);
       if (!snapshot.empty) {
-        return snapshot.docs.map((d) => normalizeInquiryLead(d.id, d.data()));
+        const raw = snapshot.docs.map((d) => normalizeInquiryLead(d.id, d.data()));
+        return deduplicateLeads(raw);
       }
     } catch (err) {
       console.warn("Firestore inquiries fetch error:", err);
@@ -192,14 +206,15 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        return data.map((item: any) => normalizeInquiryLead(item.id, item));
+        const raw = data.map((item: any) => normalizeInquiryLead(item.id, item));
+        return deduplicateLeads(raw);
       }
     }
   } catch (err) {
     console.warn("User API inquiries fetch error:", err);
   }
 
-  return INITIAL_LEADS.map((item: any) => normalizeInquiryLead(item.id, item));
+  return deduplicateLeads(INITIAL_LEADS.map((item: any) => normalizeInquiryLead(item.id, item)));
 }
 
 export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryLead> {
