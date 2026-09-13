@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Building2,
@@ -72,17 +73,20 @@ export default function Sidebar({
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-4 shrink-0 min-h-screen">
       <div className="space-y-6">
         {/* Brand Header */}
-        <div className="flex items-center gap-2.5 px-2 py-2 border-b border-slate-100">
-          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-            <Mountain className="w-5 h-5" />
+        <div className="px-2 py-3 border-b border-slate-100 space-y-1">
+          <div className="relative h-9 w-full max-w-[190px]">
+            <Image
+              src="/images/cherrapunji-hotels-logo-dark.png"
+              alt="Cherrapunji Hotels Web"
+              fill
+              className="object-contain object-left"
+            />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">
-              Cherra<span className="text-emerald-700">Admin</span>
-            </h1>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-              Hotel CRM & Inventory
-            </p>
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+              Control Panel & Live CRM
+            </span>
           </div>
         </div>
 
