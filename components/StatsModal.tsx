@@ -9,6 +9,7 @@ interface StatsModalProps {
   onClose: () => void;
   onSave: (stats: SiteStats) => void;
   currentStats: SiteStats;
+  hotelCount?: number;
 }
 
 export default function StatsModal({
@@ -16,6 +17,7 @@ export default function StatsModal({
   onClose,
   onSave,
   currentStats,
+  hotelCount,
 }: StatsModalProps) {
   const [verifiedStays, setVerifiedStays] = useState(currentStats.verifiedStays || "10+");
   const [satisfactionRate, setSatisfactionRate] = useState(
@@ -75,17 +77,31 @@ export default function StatsModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs">
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Verified Stays Counter
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-slate-700">
+                Verified Stays / Inventory
+              </label>
+              {hotelCount !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => setVerifiedStays(`${hotelCount}+`)}
+                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 transition-colors"
+                >
+                  ⚡ Auto-Sync: {hotelCount}+ Hotels
+                </button>
+              )}
+            </div>
             <input
               type="text"
               required
               value={verifiedStays}
               onChange={(e) => setVerifiedStays(e.target.value)}
-              placeholder="e.g. 25+ or 35+"
+              placeholder="e.g. 6+ or 10+"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
             />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Automatically set from active hotel inventory in Cherrapunji
+            </p>
           </div>
 
           <div>

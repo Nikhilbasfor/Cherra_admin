@@ -149,20 +149,39 @@ export default function AdminDashboard() {
 
   const handleDeleteHotel = async (hotelId: string) => {
     if (confirm("Are you sure you want to remove this hotel from the directory?")) {
-      setHotels((prev) => prev.filter((h) => h.id !== hotelId));
+      const remainingHotels = hotels.filter((h) => h.id !== hotelId);
+      setHotels(remainingHotels);
       await deleteAdminHotel(hotelId);
+
+      const updatedStats = {
+        ...stats,
+        verifiedStays: remainingHotels.length > 0 ? `${remainingHotels.length}+` : "0",
+      };
+      setStats(updatedStats);
+      await saveAdminStats(updatedStats);
     }
   };
 
   const handleSaveHotel = async (saved: Hotel) => {
+    let nextHotels: Hotel[] = [];
     setHotels((prev) => {
       const exists = prev.some((h) => h.id === saved.id);
       if (exists) {
-        return prev.map((h) => (h.id === saved.id ? saved : h));
+        nextHotels = prev.map((h) => (h.id === saved.id ? saved : h));
+      } else {
+        nextHotels = [saved, ...prev];
       }
-      return [saved, ...prev];
+      return nextHotels;
     });
     await saveAdminHotel(saved);
+
+    const count = nextHotels.length > 0 ? nextHotels.length : hotels.length;
+    const updatedStats = {
+      ...stats,
+      verifiedStays: `${count}+`,
+    };
+    setStats(updatedStats);
+    await saveAdminStats(updatedStats);
   };
 
   // Lead Handlers
@@ -1115,6 +1134,7 @@ export default function AdminDashboard() {
         isOpen={isStatsModalOpen}
         onClose={() => setIsStatsModalOpen(false)}
         currentStats={stats}
+        hotelCount={hotels.length}
         onSave={handleSaveStats}
       />
     </div>

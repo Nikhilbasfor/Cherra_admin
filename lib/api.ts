@@ -22,6 +22,16 @@ function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
   ]);
 }
 
+export function broadcastSync(type: string, payload?: any) {
+  if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+    try {
+      const channel = new BroadcastChannel("cherra_realtime_sync");
+      channel.postMessage({ type, payload });
+      channel.close();
+    } catch {}
+  }
+}
+
 // ----------------- HOTELS -----------------
 
 export async function fetchAdminHotels(): Promise<Hotel[]> {
@@ -52,6 +62,7 @@ export async function fetchAdminHotels(): Promise<Hotel[]> {
 }
 
 export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
+  broadcastSync("REFRESH_ALL");
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true }), 2500);
@@ -74,6 +85,7 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
 }
 
 export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
+  broadcastSync("REFRESH_ALL");
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(deleteDoc(doc(db, "hotels", hotelId)), 2500);
@@ -383,6 +395,7 @@ export async function fetchAdminStats(): Promise<SiteStats> {
 }
 
 export async function saveAdminStats(stats: SiteStats): Promise<SiteStats> {
+  broadcastSync("STATS_UPDATED", stats);
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(setDoc(doc(db, "site_stats", "main"), stats, { merge: true }), 2500);
