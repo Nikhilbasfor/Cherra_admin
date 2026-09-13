@@ -84,8 +84,9 @@ function LeadDetailContent({
     onUpdateLead(updated);
   };
 
-  const whatsappUrl = `https://wa.me/${lead.customerPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-    `Hello ${lead.customerName}, this is the reservations team for *${lead.hotelName}* in Cherrapunji regarding your booking request for ${lead.checkIn} to ${lead.checkOut}. How may we assist you today?`
+  const cleanPhone = (lead.customerPhone || "").replace(/[^0-9]/g, "");
+  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+    `Hello ${lead.customerName || "Guest"}, this is the reservations team for *${lead.hotelName || "Cherrapunji Stays"}* in Cherrapunji regarding your booking request for ${lead.checkIn} to ${lead.checkOut}. How may we assist you today?`
   )}`;
 
   return (
@@ -192,7 +193,7 @@ function LeadDetailContent({
               </p>
               <p className="flex items-center gap-1.5 text-slate-600">
                 <Users className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{lead.guests.adults} Adults, {lead.guests.children} Children ({lead.roomType || "Standard"})</span>
+                <span>{(lead.guests?.adults ?? 2)} Adults, {(lead.guests?.children ?? 0)} Children ({lead.roomType || "Standard"})</span>
               </p>
             </div>
           </div>
@@ -241,7 +242,7 @@ function LeadDetailContent({
                   >
                     <div className="flex items-center justify-between text-[10px] text-slate-400">
                       <span className="font-semibold text-emerald-700">{n.author}</span>
-                      <span>{n.createdAt}</span>
+                      <span>{typeof n.createdAt === "string" ? n.createdAt : "Recent"}</span>
                     </div>
                     <p className="text-slate-700">{n.text}</p>
                   </div>

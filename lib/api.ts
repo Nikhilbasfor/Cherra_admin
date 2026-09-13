@@ -95,6 +95,72 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
 
 // ----------------- INQUIRIES / LEADS -----------------
 
+function formatTimestamp(ts: any): string {
+  if (!ts) return "Recently";
+  if (typeof ts === "string") return ts;
+  if (typeof ts.toDate === "function") {
+    try {
+      return ts.toDate().toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+      });
+    } catch {
+      return "Recently";
+    }
+  }
+  if (ts.seconds) {
+    try {
+      return new Date(ts.seconds * 1000).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+      });
+    } catch {
+      return "Recently";
+    }
+  }
+  return String(ts);
+}
+
+export function normalizeInquiryLead(id: string, data: any): InquiryLead {
+  return {
+    id: id || data?.id || `lead-${Date.now()}`,
+    customerName: String(data?.customerName || "Guest"),
+    customerPhone: String(data?.customerPhone || ""),
+    customerEmail: String(data?.customerEmail || ""),
+    hotelId: String(data?.hotelId || ""),
+    hotelName: String(data?.hotelName || "Cherrapunji Stay"),
+    roomType: String(data?.roomType || "Standard Deluxe"),
+    checkIn: String(data?.checkIn || ""),
+    checkOut: String(data?.checkOut || ""),
+    guests: {
+      adults: Number(data?.guests?.adults) || 2,
+      children: Number(data?.guests?.children) || 0,
+    },
+    specialRequests: String(data?.specialRequests || ""),
+    status: (["new", "contacted", "quote_sent", "converted", "cancelled"].includes(data?.status)
+      ? data.status
+      : "new") as InquiryLead["status"],
+    budget: Number(data?.budget) || 5000,
+    notes: Array.isArray(data?.notes)
+      ? data.notes.map((n: any) => ({
+          id: String(n?.id || Date.now()),
+          text: String(n?.text || ""),
+          author: String(n?.author || "Admin"),
+          createdAt: formatTimestamp(n?.createdAt),
+        }))
+      : [],
+    createdAt: formatTimestamp(data?.createdAt),
+  };
+}
+
 export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
   if (db && isFirebaseConfigured) {
     try {
@@ -102,7 +168,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
       const q = query(col, orderBy("createdAt", "desc"));
       const snapshot = await withTimeout(getDocs(q), 2500);
       if (!snapshot.empty) {
-        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as InquiryLead));
+        return snapshot.docs.map((d) => normalizeInquiryLead(d.id, d.data()));
       }
     } catch (err) {
       console.warn("Firestore inquiries fetch error:", err);
@@ -113,13 +179,15 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     const res = await fetch(`${USER_API_BASE}/api/inquiries`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map((item: any) => normalizeInquiryLead(item.id, item));
+      }
     }
   } catch (err) {
     console.warn("User API inquiries fetch error:", err);
   }
 
-  return INITIAL_LEADS;
+  return INITIAL_LEADS.map((item: any) => normalizeInquiryLead(item.id, item));
 }
 
 export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryLead> {

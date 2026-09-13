@@ -247,12 +247,12 @@ export default function AdminDashboard() {
   // Filtered Leads
   const filteredLeads = leads.filter((l) => {
     const matchesStatus = leadStatusFilter === "all" || l.status === leadStatusFilter;
-    const matchesSearch =
-      !leadSearchQuery.trim() ||
-      l.customerName.toLowerCase().includes(leadSearchQuery.toLowerCase()) ||
-      l.customerPhone.includes(leadSearchQuery) ||
-      l.hotelName.toLowerCase().includes(leadSearchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const q = (leadSearchQuery || "").trim().toLowerCase();
+    if (!q) return matchesStatus;
+    const nameMatches = (l.customerName || "").toLowerCase().includes(q);
+    const phoneMatches = (l.customerPhone || "").includes(q);
+    const hotelMatches = (l.hotelName || "").toLowerCase().includes(q);
+    return matchesStatus && (nameMatches || phoneMatches || hotelMatches);
   });
 
   // Filtered Attractions
@@ -576,8 +576,8 @@ export default function AdminDashboard() {
                     {leads.slice(0, 4).map((lead) => (
                       <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3">
-                          <p className="font-bold text-slate-900">{lead.customerName}</p>
-                          <p className="text-[11px] text-slate-500">{lead.customerPhone}</p>
+                          <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
+                          <p className="text-[11px] text-slate-500">{lead.customerPhone || "No phone"}</p>
                         </td>
                         <td className="py-3 text-slate-700">{lead.hotelName}</td>
                         <td className="py-3 text-slate-500">
@@ -747,11 +747,11 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredLeads.map((lead) => {
-                      const cleanPhone = lead.customerPhone.replace(/[^0-9]/g, "");
+                      const cleanPhone = (lead.customerPhone || "").replace(/[^0-9]/g, "");
                       const waUrl = `https://wa.me/${cleanPhone}?text=Hi%20${encodeURIComponent(
-                        lead.customerName
+                        lead.customerName || "Guest"
                       )},%20thank%20you%20for%20your%20inquiry%20regarding%20${encodeURIComponent(
-                        lead.hotelName
+                        lead.hotelName || "Hotel"
                       )}%20in%20Cherrapunji.`;
 
                       return (
@@ -761,9 +761,11 @@ export default function AdminDashboard() {
                           className="hover:bg-slate-50/80 cursor-pointer transition-colors"
                         >
                           <td className="py-3.5">
-                            <p className="font-bold text-slate-900">{lead.customerName}</p>
-                            <p className="text-[11px] text-slate-500">{lead.customerPhone}</p>
-                            <p className="text-[10px] text-emerald-700">{lead.createdAt}</p>
+                            <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
+                            <p className="text-[11px] text-slate-500">{lead.customerPhone || "No phone"}</p>
+                            <p className="text-[10px] text-emerald-700">
+                              {typeof lead.createdAt === "string" ? lead.createdAt : "Recent"}
+                            </p>
                           </td>
                           <td className="py-3.5">
                             <p className="font-semibold text-slate-900">{lead.hotelName}</p>
@@ -775,7 +777,7 @@ export default function AdminDashboard() {
                             {lead.checkIn} ➔ {lead.checkOut}
                           </td>
                           <td className="py-3.5 text-slate-600">
-                            {lead.guests.adults}A, {lead.guests.children}C
+                            {lead.guests?.adults ?? 2}A, {lead.guests?.children ?? 0}C
                           </td>
                           <td className="py-3.5">{getStatusBadge(lead.status)}</td>
                           <td className="py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
