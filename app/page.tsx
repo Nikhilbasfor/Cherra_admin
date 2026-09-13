@@ -20,6 +20,7 @@ import {
   HelpCircle,
   MapPin,
   Settings2,
+  Menu,
 } from "lucide-react";
 import Sidebar, { AdminTab } from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
   const [faqs, setFaqs] = useState<FAQItem[]>(INITIAL_FAQS);
   const [stats, setStats] = useState<SiteStats>(INITIAL_STATS);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Modals state
   const [isHotelModalOpen, setIsHotelModalOpen] = useState(false);
@@ -336,7 +338,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#f8faf9] text-slate-900">
-      {/* Sidebar */}
+      {/* Sidebar (Desktop persistent + Mobile slide-over drawer) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -344,10 +346,64 @@ export default function AdminDashboard() {
         hotelsCount={hotels.length}
         attractionsCount={attractions.length}
         faqsCount={faqs.length}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl">
+      {/* Main Content Container */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Top App Bar (Only visible on mobile screens) */}
+        <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 -ml-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors flex items-center justify-center relative cursor-pointer active:scale-95"
+              aria-label="Open Navigation Tabs"
+              title="Menu Tabs"
+            >
+              <Menu className="w-5 h-5 text-slate-800" />
+              {newLeads > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+              )}
+            </button>
+            <div className="relative h-7 w-32">
+              <Image
+                src="/images/cherrapunji-hotels-logo-dark.png"
+                alt="Cherrapunji Hotels"
+                fill
+                className="object-contain object-left"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <span>
+                {activeTab === "dashboard" && "Dashboard"}
+                {activeTab === "hotels" && "Hotels"}
+                {activeTab === "leads" && "Leads"}
+                {activeTab === "attractions" && "Spots"}
+                {activeTab === "faqs" && "FAQs"}
+                {activeTab === "seo" && "SEO"}
+              </span>
+              <span className="text-[10px] text-emerald-600">▾</span>
+            </button>
+            <button
+              onClick={loadData}
+              disabled={isLoading}
+              className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors cursor-pointer"
+              title="Sync Backend Data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-emerald-600" : ""}`} />
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl w-full">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-200 mb-6">
           <div>
@@ -1099,6 +1155,7 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+      </div>
 
       {/* Modals */}
       <HotelModal
