@@ -722,6 +722,18 @@ export default function AdminDashboard() {
                             <div>
                               <p className="font-bold text-slate-900">{h.name}</p>
                               <p className="text-[11px] text-slate-500 line-clamp-1">{h.tagline}</p>
+                              {h.categories && h.categories.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {h.categories.slice(0, 3).map((c) => (
+                                    <span key={c} className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 text-[9px] font-medium">
+                                      {c.replace("-places-cherrapunji", "").replace("-stays-cherrapunji", "").replace("-cherrapunji", "")}
+                                    </span>
+                                  ))}
+                                  {h.categories.length > 3 && (
+                                    <span className="text-[9px] text-slate-400">+{h.categories.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

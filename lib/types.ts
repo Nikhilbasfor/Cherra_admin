@@ -38,6 +38,8 @@ export interface Hotel {
   email?: string;
   status?: "active" | "inactive";
   createdAt?: string;
+  categories?: string[];
+  seoKeywords?: string[];
 }
 
 export interface FollowUpNote {

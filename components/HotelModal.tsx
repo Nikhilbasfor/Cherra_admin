@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Building2, Plus, Trash2, Check } from "lucide-react";
+import { X, Building2, Plus, Trash2, Check, Sparkles } from "lucide-react";
 import { Hotel, Room } from "@/lib/types";
+import { CHERRAPUNJI_TRAVEL_CATEGORIES } from "@/lib/categories";
 
 interface HotelModalProps {
   isOpen: boolean;
@@ -118,6 +119,19 @@ function HotelModalContent({
     );
   };
 
+  const [categories, setCategories] = useState<string[]>(hotelToEdit?.categories || []);
+  const [seoKeywords, setSeoKeywords] = useState<string>(
+    hotelToEdit?.seoKeywords && hotelToEdit.seoKeywords.length > 0
+      ? hotelToEdit.seoKeywords.join(", ")
+      : ""
+  );
+
+  const toggleCategory = (catSlug: string) => {
+    setCategories((prev) =>
+      prev.includes(catSlug) ? prev.filter((c) => c !== catSlug) : [...prev, catSlug]
+    );
+  };
+
   const handleAddRoom = () => {
     setRooms((prev) => [
       ...prev,
@@ -174,6 +188,11 @@ function HotelModalContent({
       distanceToCenter: distanceToCenter.trim() || "Central Sohra",
       phone: phone.trim() || "+91 98648 79505",
       email: email.trim() || "bookings@cherrapunjistays.com",
+      categories,
+      seoKeywords: seoKeywords
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
     };
 
     onSave(finalHotel);
@@ -454,6 +473,63 @@ function HotelModalContent({
                 );
               })}
             </div>
+          </div>
+
+          {/* Travel Categories / SEO Themes (for Google Search Ranking) */}
+          <div className="pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-slate-800 font-bold flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Travel Categories &amp; SEO Themes</span>
+              </label>
+              <span className="text-[10px] text-slate-400">Target Google search queries</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {CHERRAPUNJI_TRAVEL_CATEGORIES.map((cat) => {
+                const isChecked = categories.includes(cat.slug);
+                return (
+                  <button
+                    key={cat.slug}
+                    type="button"
+                    onClick={() => toggleCategory(cat.slug)}
+                    className={`flex items-center gap-2 p-2 rounded-xl text-left transition-colors border ${
+                      isChecked
+                        ? "bg-emerald-50 text-emerald-950 border-emerald-300 font-semibold"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${
+                        isChecked ? "bg-emerald-600 text-white" : "border border-slate-300 bg-white"
+                      }`}
+                    >
+                      {isChecked && <Check className="w-3 h-3" />}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="block truncate text-[11px] font-medium">{cat.name}</span>
+                      <span className="block text-[9px] text-slate-400 truncate">/{cat.slug}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom Target SEO Keywords */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1">
+              Target SEO Search Queries (Separate with commas)
+            </label>
+            <input
+              type="text"
+              value={seoKeywords}
+              onChange={(e) => setSeoKeywords(e.target.value)}
+              placeholder="e.g. best honeymoon places in cherrapunji, family stay in cherrapunji"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white text-xs"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Injected into this hotel&apos;s dynamic meta tags, JSON-LD Schema, and search index for top Google rankings.
+            </p>
           </div>
 
           {/* Rooms */}
