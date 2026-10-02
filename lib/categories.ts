@@ -7,6 +7,7 @@ export interface TravelCategory {
   description: string;
   targetKeywords: string[];
   heroBadge: string;
+  starFilter?: number;
 }
 
 export const CHERRAPUNJI_TRAVEL_CATEGORIES: TravelCategory[] = [
@@ -107,5 +108,79 @@ export const CHERRAPUNJI_TRAVEL_CATEGORIES: TravelCategory[] = [
       "trekking stay sohra",
     ],
     heroBadge: "Trailhead & Adventure Bases",
+  },
+  {
+    id: "5-star-resorts-cherrapunji",
+    name: "5 Star Resorts in Cherrapunji",
+    shortName: "5 Star Resorts",
+    slug: "5-star-resorts-cherrapunji",
+    title: "Best 5 Star Resorts in Cherrapunji (2026 Direct Rates)",
+    description: "Experience world-class luxury perched on dramatic cliff edges with infinity pools and five-star mountain hospitality.",
+    targetKeywords: [
+      "best 5 star resorts in cherrapunji",
+      "5 star hotels in cherra",
+      "5 star resort cherrapunji",
+    ],
+    heroBadge: "5 Star Luxury Resorts",
+    starFilter: 5,
+  },
+  {
+    id: "4-star-resorts-cherrapunji",
+    name: "4 Star Resorts in Cherrapunji",
+    shortName: "4 Star Resorts",
+    slug: "4-star-resorts-cherrapunji",
+    title: "Best 4 Star Resorts in Cherrapunji (2026 Direct Rates)",
+    description: "Indulge in premium 4-star comfort amidst whispering pine groves and rolling mountain mist.",
+    targetKeywords: [
+      "best 4 star resorts in cherrapunji",
+      "4 star hotels in cherra",
+      "4 star resort cherrapunji",
+    ],
+    heroBadge: "4 Star Premium Resorts",
+    starFilter: 4,
+  },
+  {
+    id: "3-star-resorts-cherrapunji",
+    name: "3 Star Resorts & Hotels in Cherrapunji",
+    shortName: "3 Star Resorts",
+    slug: "3-star-resorts-cherrapunji",
+    title: "Best 3 Star Resorts & Hotels in Cherrapunji (2026 Direct Rates)",
+    description: "Highly rated 3-star boutique resorts and cliff cottages offering breathtaking canyon views and warm hospitality.",
+    targetKeywords: [
+      "best 3 star resorts in cherrapunji",
+      "3 star hotels in cherrapunji",
+      "3 star hotels in cherra",
+    ],
+    heroBadge: "3 Star Comfort Stays",
+    starFilter: 3,
+  },
+  {
+    id: "2-star-budget-stays-cherrapunji",
+    name: "2 Star & Budget Stays in Cherrapunji",
+    shortName: "2 Star Stays",
+    slug: "2-star-budget-stays-cherrapunji",
+    title: "Best 2 Star & Budget Stays in Cherrapunji (2026 Direct Rates)",
+    description: "Clean, comfortable, and centrally situated 2-star hotels close to Sohra markets and taxi stands.",
+    targetKeywords: [
+      "2 star hotels in cherrapunji",
+      "2 star stays in cherra",
+      "budget hotels cherrapunji",
+    ],
+    heroBadge: "2 Star Budget Stays",
+    starFilter: 2,
+  },
+  {
+    id: "1-star-backpacker-stays-cherrapunji",
+    name: "1 Star & Backpacker Stays in Cherrapunji",
+    shortName: "1 Star Stays",
+    slug: "1-star-backpacker-stays-cherrapunji",
+    title: "Best 1 Star & Backpacker Stays in Cherrapunji (2026 Direct Rates)",
+    description: "Honest, affordable village guest accommodations for solo hikers and backpackers.",
+    targetKeywords: [
+      "1 star hotels in cherrapunji",
+      "backpacker stays cherra",
+    ],
+    heroBadge: "1 Star Backpacker Stays",
+    starFilter: 1,
   },
 ];
