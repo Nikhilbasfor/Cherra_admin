@@ -22,7 +22,7 @@ function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
   ]);
 }
 
-export function broadcastSync(type: string, payload?: any) {
+export function broadcastSync(type: string, payload?: unknown) {
   if (typeof window !== "undefined" && "BroadcastChannel" in window) {
     try {
       const channel = new BroadcastChannel("cherra_realtime_sync");
@@ -107,12 +107,12 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
 
 // ----------------- INQUIRIES / LEADS -----------------
 
-function formatTimestamp(ts: any): string {
+function formatTimestamp(ts: unknown): string {
   if (!ts) return "Recently";
   if (typeof ts === "string") return ts;
-  if (typeof ts.toDate === "function") {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
     try {
-      return ts.toDate().toLocaleString("en-US", {
+      return (ts as { toDate: () => Date }).toDate().toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -124,9 +124,9 @@ function formatTimestamp(ts: any): string {
       return "Recently";
     }
   }
-  if (ts.seconds) {
+  if (typeof ts === "object" && ts !== null && "seconds" in ts) {
     try {
-      return new Date(ts.seconds * 1000).toLocaleString("en-US", {
+      return new Date(Number((ts as { seconds: number }).seconds) * 1000).toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -141,7 +141,7 @@ function formatTimestamp(ts: any): string {
   return String(ts);
 }
 
-export function normalizeInquiryLead(id: string, data: any): InquiryLead {
+export function normalizeInquiryLead(id: string, data: Record<string, any>): InquiryLead {
   return {
     id: id || data?.id || `lead-${Date.now()}`,
     customerName: String(data?.customerName || "Guest"),
@@ -162,7 +162,7 @@ export function normalizeInquiryLead(id: string, data: any): InquiryLead {
       : "new") as InquiryLead["status"],
     budget: Number(data?.budget) || 5000,
     notes: Array.isArray(data?.notes)
-      ? data.notes.map((n: any) => ({
+      ? data.notes.map((n: Record<string, any>) => ({
           id: String(n?.id || Date.now()),
           text: String(n?.text || ""),
           author: String(n?.author || "Admin"),

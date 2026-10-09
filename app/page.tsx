@@ -16,8 +16,6 @@ import {
   Sparkles,
   ExternalLink,
   RefreshCw,
-  Compass,
-  HelpCircle,
   MapPin,
   Settings2,
   Menu,
