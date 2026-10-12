@@ -19,6 +19,7 @@ import {
   MapPin,
   Settings2,
   Menu,
+  FileSpreadsheet,
 } from "lucide-react";
 import Sidebar, { AdminTab } from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
@@ -27,6 +28,8 @@ import LeadDetailModal from "@/components/LeadDetailModal";
 import AttractionModal from "@/components/AttractionModal";
 import FAQModal from "@/components/FAQModal";
 import StatsModal from "@/components/StatsModal";
+import AdminLogin from "@/components/AdminLogin";
+import HotelCSVModal from "@/components/HotelCSVModal";
 import {
   INITIAL_HOTELS,
   INITIAL_LEADS,
@@ -52,6 +55,7 @@ import {
 } from "@/lib/api";
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [hotels, setHotels] = useState<Hotel[]>(INITIAL_HOTELS);
   const [leads, setLeads] = useState<InquiryLead[]>(INITIAL_LEADS);
@@ -64,6 +68,7 @@ export default function AdminDashboard() {
   // Modals state
   const [isHotelModalOpen, setIsHotelModalOpen] = useState(false);
   const [hotelToEdit, setHotelToEdit] = useState<Hotel | null>(null);
+  const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
 
   const [selectedLead, setSelectedLead] = useState<InquiryLead | null>(null);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -75,6 +80,26 @@ export default function AdminDashboard() {
   const [faqToEdit, setFaqToEdit] = useState<FAQItem | null>(null);
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  // Check login authentication
+  useEffect(() => {
+    try {
+      const auth =
+        localStorage.getItem("cherra_admin_auth") === "true" ||
+        sessionStorage.getItem("cherra_admin_auth") === "true";
+      setIsAuthenticated(auth);
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("cherra_admin_auth");
+      sessionStorage.removeItem("cherra_admin_auth");
+    } catch {}
+    setIsAuthenticated(false);
+  };
 
   // Filter / search states
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
@@ -179,6 +204,26 @@ export default function AdminDashboard() {
     const updatedStats = {
       ...stats,
       verifiedStays: `${count}+`,
+    };
+    setStats(updatedStats);
+    await saveAdminStats(updatedStats);
+  };
+
+  const handleBulkImportHotels = async (importedList: Hotel[]) => {
+    let currentHotels = [...hotels];
+    for (const hotel of importedList) {
+      await saveAdminHotel(hotel);
+      const idx = currentHotels.findIndex((h) => h.id === hotel.id || h.slug === hotel.slug);
+      if (idx >= 0) {
+        currentHotels[idx] = hotel;
+      } else {
+        currentHotels = [hotel, ...currentHotels];
+      }
+    }
+    setHotels(currentHotels);
+    const updatedStats = {
+      ...stats,
+      verifiedStays: `${currentHotels.length}+`,
     };
     setStats(updatedStats);
     await saveAdminStats(updatedStats);
@@ -334,6 +379,18 @@ export default function AdminDashboard() {
     }
   };
 
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#0d281e]">
+        <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated === false) {
+    return <AdminLogin onSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="flex min-h-screen bg-[#f8faf9] text-slate-900">
       {/* Sidebar (Desktop persistent + Mobile slide-over drawer) */}
@@ -346,6 +403,7 @@ export default function AdminDashboard() {
         faqsCount={faqs.length}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Container */}
@@ -431,19 +489,28 @@ export default function AdminDashboard() {
             </button>
 
             {activeTab === "hotels" && (
-              <button
-                onClick={handleOpenAddHotel}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add New Hotel</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsCSVModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Bulk Import CSV</span>
+                </button>
+                <button
+                  onClick={handleOpenAddHotel}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Hotel</span>
+                </button>
+              </div>
             )}
 
             {activeTab === "attractions" && (
               <button
                 onClick={handleOpenAddAttraction}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Sightseeing Spot</span>
@@ -453,7 +520,7 @@ export default function AdminDashboard() {
             {activeTab === "faqs" && (
               <button
                 onClick={handleOpenAddFAQ}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New Question</span>
@@ -461,7 +528,7 @@ export default function AdminDashboard() {
             )}
 
             <a
-              href="http://localhost:3000"
+              href="https://resortsincherrapunji.com"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium transition-colors shadow-xs"
@@ -688,13 +755,22 @@ export default function AdminDashboard() {
                     website
                   </p>
                 </div>
-                <button
-                  onClick={handleOpenAddHotel}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs self-start sm:self-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Hotel</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={() => setIsCSVModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-xs shadow-xs transition-all cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    <span>Bulk Import CSV</span>
+                  </button>
+                  <button
+                    onClick={handleOpenAddHotel}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Hotel</span>
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -1203,6 +1279,13 @@ export default function AdminDashboard() {
         currentStats={stats}
         hotelCount={hotels.length}
         onSave={handleSaveStats}
+      />
+
+      <HotelCSVModal
+        isOpen={isCSVModalOpen}
+        onClose={() => setIsCSVModalOpen(false)}
+        existingHotels={hotels}
+        onImportComplete={handleBulkImportHotels}
       />
     </div>
   );
