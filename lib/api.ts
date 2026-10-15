@@ -74,7 +74,10 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
   try {
     await fetch(`${USER_API_BASE}/api/hotels`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
       body: JSON.stringify(hotel),
     });
   } catch (err) {
@@ -97,6 +100,9 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
   try {
     await fetch(`${USER_API_BASE}/api/hotels/${hotelId}`, {
       method: "DELETE",
+      headers: {
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
     });
   } catch (err) {
     console.warn("User API delete hotel error:", err);
