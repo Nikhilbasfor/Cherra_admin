@@ -11,7 +11,11 @@ import {
   orderBy,
 } from "firebase/firestore";
 
-const USER_API_BASE = process.env.NEXT_PUBLIC_USER_API_URL || "http://localhost:3000";
+const USER_API_BASE =
+  process.env.NEXT_PUBLIC_USER_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://resortsincherrapunji.com"
+    : "http://localhost:3000");
 
 function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
   return Promise.race([
@@ -208,7 +212,12 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
   }
 
   try {
-    const res = await fetch(`${USER_API_BASE}/api/inquiries`, { cache: "no-store" });
+    const res = await fetch(`${USER_API_BASE}/api/inquiries`, {
+      cache: "no-store",
+      headers: {
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -235,7 +244,10 @@ export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryL
   try {
     await fetch(`${USER_API_BASE}/api/inquiries/${inquiry.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
       body: JSON.stringify(inquiry),
     });
   } catch (err) {
@@ -286,7 +298,10 @@ export async function saveAdminAttraction(attraction: Attraction): Promise<Attra
   try {
     await fetch(`${USER_API_BASE}/api/attractions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
       body: JSON.stringify(attraction),
     });
   } catch (err) {
@@ -308,6 +323,9 @@ export async function deleteAdminAttraction(attractionId: string): Promise<boole
   try {
     await fetch(`${USER_API_BASE}/api/attractions/${attractionId}`, {
       method: "DELETE",
+      headers: {
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
     });
   } catch (err) {
     console.warn("User API delete attraction error:", err);
@@ -357,7 +375,10 @@ export async function saveAdminFAQ(faq: FAQItem): Promise<FAQItem> {
   try {
     await fetch(`${USER_API_BASE}/api/faqs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
       body: JSON.stringify(faq),
     });
   } catch (err) {
@@ -379,6 +400,9 @@ export async function deleteAdminFAQ(faqId: string): Promise<boolean> {
   try {
     await fetch(`${USER_API_BASE}/api/faqs/${faqId}`, {
       method: "DELETE",
+      headers: {
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
     });
   } catch (err) {
     console.warn("User API delete FAQ error:", err);
@@ -428,7 +452,10 @@ export async function saveAdminStats(stats: SiteStats): Promise<SiteStats> {
   try {
     await fetch(`${USER_API_BASE}/api/stats`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
       body: JSON.stringify(stats),
     });
   } catch (err) {
