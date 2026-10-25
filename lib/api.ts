@@ -1,6 +1,7 @@
 import { Hotel, InquiryLead, Attraction, FAQItem, SiteStats } from "./types";
 import { INITIAL_HOTELS, INITIAL_LEADS, INITIAL_ATTRACTIONS, INITIAL_FAQS, INITIAL_STATS } from "./initialData";
-import { db, isFirebaseConfigured } from "./firebase";
+import { db, storage, isFirebaseConfigured } from "./firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
   getDocs,
@@ -9,6 +10,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
 } from "firebase/firestore";
 
 const USER_API_BASE =
@@ -115,6 +117,88 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Upload a batch/folder of photos for a specific hotel.
+ * Replaces hardcoded Unsplash images with real property photos.
+ * Uses Firebase Storage with automatic fallback to local Next.js /api/upload.
+ */
+export async function uploadAdminHotelImages(
+  hotel: Hotel,
+  files: File[],
+  replaceAll: boolean = true,
+  onProgress?: (current: number, total: number) => void
+): Promise<{ success: boolean; images: string[]; hotel?: Hotel }> {
+  const imageFiles = files.filter(
+    (f) => f.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|avif|heic)$/i.test(f.name)
+  );
+
+  if (imageFiles.length === 0) {
+    throw new Error("No valid image files were selected.");
+  }
+
+  // 1. Try Firebase Storage if configured
+  let storageUrls: string[] = [];
+  if (storage && isFirebaseConfigured) {
+    try {
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const storageRef = ref(
+          storage,
+          `hotels/${hotel.slug || hotel.id}/${Date.now()}_${i + 1}_${safeName}`
+        );
+        await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(storageRef);
+        storageUrls.push(downloadUrl);
+        onProgress?.(i + 1, imageFiles.length);
+      }
+    } catch (storageErr) {
+      console.warn("Direct Firebase Storage upload unavailable, switching to API:", storageErr);
+      storageUrls = [];
+    }
+  }
+
+  // If Firebase Storage succeeded, save hotel directly
+  if (storageUrls.length > 0) {
+    const finalImages = replaceAll
+      ? storageUrls
+      : [...(hotel.images || []).filter((img) => !img.includes("unsplash.com")), ...storageUrls];
+    const updatedHotel: Hotel = { ...hotel, images: finalImages };
+    await saveAdminHotel(updatedHotel);
+    broadcastSync("REFRESH_ALL");
+    return { success: true, images: finalImages, hotel: updatedHotel };
+  }
+
+  // 2. Direct API Fallback to Next.js /api/upload
+  const formData = new FormData();
+  formData.append("hotelId", hotel.id);
+  formData.append("hotelSlug", hotel.slug || hotel.id);
+  formData.append("replaceAll", replaceAll ? "true" : "false");
+  imageFiles.forEach((file) => formData.append("files", file));
+
+  const res = await fetch(`${USER_API_BASE}/api/upload`, {
+    method: "POST",
+    headers: {
+      "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Upload failed with HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  broadcastSync("REFRESH_ALL");
+
+  return {
+    success: true,
+    images: data.images || data.savedUrls || [],
+    hotel: data.hotel,
+  };
+}
+
 // ----------------- INQUIRIES / LEADS -----------------
 
 function formatTimestamp(ts: unknown): string {
@@ -206,6 +290,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
         const raw = snapshot.docs.map((d) => normalizeInquiryLead(d.id, d.data()));
         return deduplicateLeads(raw);
       }
+      return [];
     } catch (err) {
       console.warn("Firestore inquiries fetch error:", err);
     }
@@ -220,7 +305,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const raw = data.map((item: any) => normalizeInquiryLead(item.id, item));
         return deduplicateLeads(raw);
       }
@@ -229,7 +314,32 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     console.warn("User API inquiries fetch error:", err);
   }
 
-  return deduplicateLeads(INITIAL_LEADS.map((item: any) => normalizeInquiryLead(item.id, item)));
+  return [];
+}
+
+/**
+ * Real-time listener for incoming inquiries and WhatsApp click leads.
+ * Fires instantly as soon as any enquiry is submitted on the website.
+ */
+export function subscribeToAdminInquiries(callback: (leads: InquiryLead[]) => void): () => void {
+  if (!db || !isFirebaseConfigured) return () => {};
+  try {
+    const col = collection(db, "inquiries");
+    const q = query(col, orderBy("createdAt", "desc"));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const raw = snapshot.docs.map((d) => normalizeInquiryLead(d.id, d.data()));
+        callback(deduplicateLeads(raw));
+      },
+      (err) => {
+        console.warn("Real-time inquiries listener warning:", err);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to subscribe to inquiries:", err);
+    return () => {};
+  }
 }
 
 export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryLead> {

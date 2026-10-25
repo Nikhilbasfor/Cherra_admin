@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCqJAgcMfdnyIzG-zFY3mdJDJxEO04tj-I",
@@ -17,16 +18,18 @@ const isFirebaseConfigured = Boolean(
 
 let app: ReturnType<typeof initializeApp> | null = null;
 let db: ReturnType<typeof getFirestore> | null = null;
+let storage: ReturnType<typeof getStorage> | null = null;
 
 if (typeof window !== "undefined" || isFirebaseConfigured) {
   try {
     if (isFirebaseConfigured) {
       app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
       db = getFirestore(app);
+      storage = getStorage(app);
     }
   } catch (error) {
     console.warn("Firebase initialization in Admin skipped:", error);
   }
 }
 
-export { app, db, isFirebaseConfigured };
+export { app, db, storage, isFirebaseConfigured };

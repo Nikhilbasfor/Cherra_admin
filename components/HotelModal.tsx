@@ -423,12 +423,19 @@ function HotelModalContent({
 
           {/* Image URL */}
           <div>
-            <label className="block text-slate-700 font-semibold mb-1">Photo Image URL</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-slate-700 font-semibold">Primary Photo / Cover Image URL</label>
+              {hotelToEdit && (
+                <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Tip: Use the green "Photos" button on the table to upload a full folder of photos
+                </span>
+              )}
+            </div>
             <input
               type="url"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
+              placeholder="https://images.unsplash.com/... or /uploads/hotels/..."
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
             />
           </div>

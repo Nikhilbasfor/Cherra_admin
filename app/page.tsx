@@ -20,10 +20,12 @@ import {
   Settings2,
   Menu,
   FileSpreadsheet,
+  Images,
 } from "lucide-react";
 import Sidebar, { AdminTab } from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
 import HotelModal from "@/components/HotelModal";
+import HotelPhotosModal from "@/components/HotelPhotosModal";
 import LeadDetailModal from "@/components/LeadDetailModal";
 import AttractionModal from "@/components/AttractionModal";
 import FAQModal from "@/components/FAQModal";
@@ -43,6 +45,7 @@ import {
   saveAdminHotel,
   deleteAdminHotel,
   fetchAdminInquiries,
+  subscribeToAdminInquiries,
   updateAdminInquiry,
   fetchAdminAttractions,
   saveAdminAttraction,
@@ -58,7 +61,7 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [hotels, setHotels] = useState<Hotel[]>(INITIAL_HOTELS);
-  const [leads, setLeads] = useState<InquiryLead[]>(INITIAL_LEADS);
+  const [leads, setLeads] = useState<InquiryLead[]>([]);
   const [attractions, setAttractions] = useState<Attraction[]>(INITIAL_ATTRACTIONS);
   const [faqs, setFaqs] = useState<FAQItem[]>(INITIAL_FAQS);
   const [stats, setStats] = useState<SiteStats>(INITIAL_STATS);
@@ -69,6 +72,8 @@ export default function AdminDashboard() {
   const [isHotelModalOpen, setIsHotelModalOpen] = useState(false);
   const [hotelToEdit, setHotelToEdit] = useState<Hotel | null>(null);
   const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
+  const [isPhotosModalOpen, setIsPhotosModalOpen] = useState(false);
+  const [hotelForPhotos, setHotelForPhotos] = useState<Hotel | null>(null);
 
   const [selectedLead, setSelectedLead] = useState<InquiryLead | null>(null);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -119,7 +124,7 @@ export default function AdminDashboard() {
         fetchAdminStats(),
       ]);
       if (hList && hList.length > 0) setHotels(hList);
-      if (iList && iList.length > 0) setLeads(iList);
+      if (Array.isArray(iList)) setLeads(iList);
       if (aList && aList.length > 0) setAttractions(aList);
       if (fList && fList.length > 0) setFaqs(fList);
       if (sData) setStats(sData);
@@ -132,6 +137,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let isMounted = true;
+
+    // 1. Live real-time listener for incoming inquiries and WhatsApp clicks
+    const unsubInquiries = subscribeToAdminInquiries((realtimeLeads) => {
+      if (isMounted && Array.isArray(realtimeLeads)) {
+        setLeads(realtimeLeads);
+      }
+    });
+
+    // 2. Periodic poll for other resources
     const fetchLatest = async () => {
       try {
         const [hList, iList, aList, fList, sData] = await Promise.all([
@@ -143,7 +157,7 @@ export default function AdminDashboard() {
         ]);
         if (isMounted) {
           if (hList && hList.length > 0) setHotels(hList);
-          if (iList && iList.length > 0) setLeads(iList);
+          if (Array.isArray(iList)) setLeads(iList);
           if (aList && aList.length > 0) setAttractions(aList);
           if (fList && fList.length > 0) setFaqs(fList);
           if (sData) setStats(sData);
@@ -158,6 +172,7 @@ export default function AdminDashboard() {
     return () => {
       isMounted = false;
       clearInterval(interval);
+      unsubInquiries();
     };
   }, []);
 
@@ -170,6 +185,11 @@ export default function AdminDashboard() {
   const handleOpenEditHotel = (hotel: Hotel) => {
     setHotelToEdit(hotel);
     setIsHotelModalOpen(true);
+  };
+
+  const handleOpenPhotos = (hotel: Hotel) => {
+    setHotelForPhotos(hotel);
+    setIsPhotosModalOpen(true);
   };
 
   const handleDeleteHotel = async (hotelId: string) => {
@@ -713,27 +733,37 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {leads.slice(0, 4).map((lead) => (
-                      <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3">
-                          <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
-                          <p className="text-[11px] text-slate-500">{lead.customerPhone || "No phone"}</p>
-                        </td>
-                        <td className="py-3 text-slate-700">{lead.hotelName}</td>
-                        <td className="py-3 text-slate-500">
-                          {lead.checkIn} to {lead.checkOut}
-                        </td>
-                        <td className="py-3">{getStatusBadge(lead.status)}</td>
-                        <td className="py-3 text-right">
-                          <button
-                            onClick={() => handleOpenLead(lead)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold"
-                          >
-                            Open Lead
-                          </button>
+                    {leads.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400">
+                          <MessageSquare className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                          <p className="font-semibold text-slate-600 text-xs">No inquiries yet</p>
+                          <p className="text-[11px] text-slate-400">Customer leads and WhatsApp clicks will appear here live.</p>
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      leads.slice(0, 4).map((lead) => (
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3">
+                            <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
+                            <p className="text-[11px] text-slate-500">{lead.customerPhone || "No phone"}</p>
+                          </td>
+                          <td className="py-3 text-slate-700">{lead.hotelName}</td>
+                          <td className="py-3 text-slate-500">
+                            {lead.checkIn} to {lead.checkOut}
+                          </td>
+                          <td className="py-3">{getStatusBadge(lead.status)}</td>
+                          <td className="py-3 text-right">
+                            <button
+                              onClick={() => handleOpenLead(lead)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold"
+                            >
+                              Open Lead
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -829,6 +859,13 @@ export default function AdminDashboard() {
                         <td className="py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              onClick={() => handleOpenPhotos(h)}
+                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
+                              title="Upload Photos / Replace Unsplash Images"
+                            >
+                              <Images className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => handleOpenEditHotel(h)}
                               className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900"
                               title="Edit Hotel"
@@ -907,63 +944,91 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredLeads.map((lead) => {
-                      const cleanPhone = (lead.customerPhone || "").replace(/[^0-9]/g, "");
-                      const waUrl = `https://wa.me/${cleanPhone}?text=Hi%20${encodeURIComponent(
-                        lead.customerName || "Guest"
-                      )},%20thank%20you%20for%20your%20inquiry%20regarding%20${encodeURIComponent(
-                        lead.hotelName || "Hotel"
-                      )}%20in%20Cherrapunji.`;
+                    {filteredLeads.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-14 text-center">
+                          <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="font-bold text-slate-700 text-xs sm:text-sm">No customer inquiries yet</p>
+                          <p className="text-[11px] text-slate-400 max-w-sm mx-auto mt-1">
+                            Live booking inquiries from website forms and direct WhatsApp clicks will appear here in real-time.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredLeads.map((lead) => {
+                        const isWaClick =
+                          lead.customerPhone === "Direct WhatsApp Click" ||
+                          lead.customerName?.includes("WhatsApp");
+                        const cleanPhone = (lead.customerPhone || "").replace(/[^0-9]/g, "");
+                        const waUrl = isWaClick
+                          ? "https://wa.me/919864879505"
+                          : `https://wa.me/${cleanPhone}?text=Hi%20${encodeURIComponent(
+                              lead.customerName || "Guest"
+                            )},%20thank%20you%20for%20your%20inquiry%20regarding%20${encodeURIComponent(
+                              lead.hotelName || "Hotel"
+                            )}%20in%20Cherrapunji.`;
 
-                      return (
-                        <tr
-                          key={lead.id}
-                          onClick={() => handleOpenLead(lead)}
-                          className="hover:bg-slate-50/80 cursor-pointer transition-colors"
-                        >
-                          <td className="py-3.5">
-                            <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
-                            <p className="text-[11px] text-slate-500">{lead.customerPhone || "No phone"}</p>
-                            <p className="text-[10px] text-emerald-700">
-                              {typeof lead.createdAt === "string" ? lead.createdAt : "Recent"}
-                            </p>
-                          </td>
-                          <td className="py-3.5">
-                            <p className="font-semibold text-slate-900">{lead.hotelName}</p>
-                            <p className="text-[11px] text-slate-500">
-                              {lead.roomType || "Standard"}
-                            </p>
-                          </td>
-                          <td className="py-3.5 text-slate-600">
-                            {lead.checkIn} ➔ {lead.checkOut}
-                          </td>
-                          <td className="py-3.5 text-slate-600">
-                            {lead.guests?.adults ?? 2}A, {lead.guests?.children ?? 0}C
-                          </td>
-                          <td className="py-3.5">{getStatusBadge(lead.status)}</td>
-                          <td className="py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
-                              <a
-                                href={waUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
-                                title="WhatsApp Guest"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              </a>
-                              <a
-                                href={`tel:${lead.customerPhone}`}
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900"
-                                title="Call Guest"
-                              >
-                                <PhoneCall className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        return (
+                          <tr
+                            key={lead.id}
+                            onClick={() => handleOpenLead(lead)}
+                            className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                          >
+                            <td className="py-3.5">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-bold text-slate-900">{lead.customerName || "Guest"}</p>
+                                {isWaClick && (
+                                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-wider">
+                                    WhatsApp
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500">
+                                {isWaClick ? "Direct WhatsApp Chat Initiated" : (lead.customerPhone || "No phone")}
+                              </p>
+                              <p className="text-[10px] text-emerald-700">
+                                {typeof lead.createdAt === "string" ? lead.createdAt : "Recent"}
+                              </p>
+                            </td>
+                            <td className="py-3.5">
+                              <p className="font-semibold text-slate-900">{lead.hotelName}</p>
+                              <p className="text-[11px] text-slate-500">
+                                {lead.roomType || "Standard"}
+                              </p>
+                            </td>
+                            <td className="py-3.5 text-slate-600">
+                              {lead.checkIn} ➔ {lead.checkOut}
+                            </td>
+                            <td className="py-3.5 text-slate-600">
+                              {lead.guests?.adults ?? 2}A, {lead.guests?.children ?? 0}C
+                            </td>
+                            <td className="py-3.5">{getStatusBadge(lead.status)}</td>
+                            <td className="py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <a
+                                  href={waUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
+                                  title={isWaClick ? "Open Concierge WhatsApp" : "WhatsApp Guest"}
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </a>
+                                {!isWaClick && cleanPhone.length >= 8 && (
+                                  <a
+                                    href={`tel:${lead.customerPhone}`}
+                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900"
+                                    title="Call Guest"
+                                  >
+                                    <PhoneCall className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1286,6 +1351,15 @@ export default function AdminDashboard() {
         onClose={() => setIsCSVModalOpen(false)}
         existingHotels={hotels}
         onImportComplete={handleBulkImportHotels}
+      />
+
+      <HotelPhotosModal
+        isOpen={isPhotosModalOpen}
+        onClose={() => setIsPhotosModalOpen(false)}
+        hotel={hotelForPhotos}
+        onSaved={(updated) => {
+          setHotels((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+        }}
       />
     </div>
   );
