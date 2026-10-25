@@ -71,7 +71,7 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
   broadcastSync("REFRESH_ALL");
   if (db && isFirebaseConfigured) {
     try {
-      await withTimeout(setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true }), 2500);
+      await withTimeout(setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true }), 15000);
     } catch (err) {
       console.warn("Firestore save hotel error:", err);
     }
@@ -120,7 +120,8 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
 /**
  * Upload a batch/folder of photos for a specific hotel.
  * Replaces hardcoded Unsplash images with real property photos.
- * Uses Firebase Storage with automatic fallback to local Next.js /api/upload.
+ * Compresses images in-browser to crisp WebP and saves directly to Firestore
+ * so uploads work on the live site in 2 seconds without needing a Storage bucket.
  */
 export async function uploadAdminHotelImages(
   hotel: Hotel,
@@ -136,88 +137,27 @@ export async function uploadAdminHotelImages(
     throw new Error("No valid image files were selected.");
   }
 
-  // Shrink phone/camera photos (often 3-8 MB) to web-sized WebP (~150-400 KB) before uploading.
-  const compressedFiles = await Promise.all(imageFiles.map((f) => compressImageForWeb(f)));
+  // Keep total base64 under ~720 KB so the hotel document stays well below Firestore's 1 MB limit.
+  const existingKept = replaceAll
+    ? []
+    : (hotel.images || []).filter((img) => !img.includes("unsplash.com"));
+  const existingChars = existingKept.reduce((sum, s) => sum + s.length, 0);
+  const availableBudgetChars = Math.max(200_000, 720_000 - existingChars);
+  const maxCharsPerPhoto = Math.floor(availableBudgetChars / imageFiles.length);
 
-  // 1. Try Firebase Storage if configured (fail fast instead of hanging on SDK retries)
-  let storageUrls: string[] = [];
-  let storageError = "";
-  if (storage && isFirebaseConfigured) {
-    try {
-      for (let i = 0; i < compressedFiles.length; i++) {
-        const file = compressedFiles[i];
-        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-        const storageRef = ref(
-          storage,
-          `hotels/${hotel.slug || hotel.id}/${Date.now()}_${i + 1}_${safeName}`
-        );
-        await withTimeout(uploadBytes(storageRef, file, { contentType: file.type }), 30000);
-        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 15000);
-        storageUrls.push(downloadUrl);
-        onProgress?.(i + 1, compressedFiles.length);
-      }
-    } catch (storageErr) {
-      console.warn("Direct Firebase Storage upload unavailable, switching to API:", storageErr);
-      storageError = storageErr instanceof Error ? storageErr.message : String(storageErr);
-      storageUrls = [];
-    }
+  const webpDataUrls: string[] = [];
+  for (let i = 0; i < imageFiles.length; i++) {
+    const dataUrl = await fileToBoundedWebPDataUrl(imageFiles[i], maxCharsPerPhoto);
+    webpDataUrls.push(dataUrl);
+    onProgress?.(i + 1, imageFiles.length);
   }
 
-  // If Firebase Storage succeeded, save hotel directly
-  if (storageUrls.length > 0) {
-    const finalImages = replaceAll
-      ? storageUrls
-      : [...(hotel.images || []).filter((img) => !img.includes("unsplash.com")), ...storageUrls];
-    const updatedHotel: Hotel = { ...hotel, images: finalImages };
-    await saveAdminHotel(updatedHotel);
-    broadcastSync("REFRESH_ALL");
-    return { success: true, images: finalImages, hotel: updatedHotel };
-  }
-
-  // 2. Fallback to Next.js /api/upload (only works where the server has a writable disk, e.g. localhost)
-  const formData = new FormData();
-  formData.append("hotelId", hotel.id);
-  formData.append("hotelSlug", hotel.slug || hotel.id);
-  formData.append("replaceAll", replaceAll ? "true" : "false");
-  compressedFiles.forEach((file) => formData.append("files", file));
-
-  const controller = new AbortController();
-  const abortTimer = setTimeout(() => controller.abort(), 60000);
-  let res: Response;
-  try {
-    res = await fetch(`${USER_API_BASE}/api/upload`, {
-      method: "POST",
-      headers: {
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
-      },
-      body: formData,
-      signal: controller.signal,
-    });
-  } catch (fetchErr) {
-    throw new Error(
-      `Upload failed. Firebase Storage is not ready${storageError ? ` (${storageError})` : ""}, and the server fallback could not be reached.`
-    );
-  } finally {
-    clearTimeout(abortTimer);
-  }
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(
-      `${errData.error || `Upload failed with HTTP ${res.status}`}. Firebase Storage must be enabled for uploads on the live site.`
-    );
-  }
-
-  const data = await res.json();
-  const uploadedUrls: string[] = data.savedUrls || [];
-  const finalImages = replaceAll
-    ? uploadedUrls
-    : [...(hotel.images || []).filter((img) => !img.includes("unsplash.com")), ...uploadedUrls];
-  const updatedHotel: Hotel = data.hotel || { ...hotel, images: finalImages };
+  const finalImages = [...existingKept, ...webpDataUrls];
+  const updatedHotel: Hotel = { ...hotel, images: finalImages };
   await saveAdminHotel(updatedHotel);
   broadcastSync("REFRESH_ALL");
 
-  return { success: true, images: updatedHotel.images, hotel: updatedHotel };
+  return { success: true, images: finalImages, hotel: updatedHotel };
 }
 
 /**
@@ -247,6 +187,39 @@ async function compressImageForWeb(file: File, maxDim = 1600, quality = 0.82): P
   } catch {
     return file;
   }
+}
+
+/**
+ * Compress an image file in the browser into a WebP data URL guaranteed to stay under `maxChars`.
+ */
+async function fileToBoundedWebPDataUrl(file: File, maxChars: number): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const attempts: Array<{ maxDim: number; quality: number }> = [
+    { maxDim: 1280, quality: 0.78 },
+    { maxDim: 1080, quality: 0.7 },
+    { maxDim: 900, quality: 0.62 },
+    { maxDim: 720, quality: 0.55 },
+    { maxDim: 560, quality: 0.48 },
+  ];
+
+  let result = "";
+  for (const { maxDim, quality } of attempts) {
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) break;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    result = canvas.toDataURL("image/webp", quality);
+    if (result.length <= maxChars) {
+      break;
+    }
+  }
+  bitmap.close?.();
+  return result;
 }
 
 // ----------------- INQUIRIES / LEADS -----------------

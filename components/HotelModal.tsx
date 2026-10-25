@@ -171,6 +171,7 @@ function HotelModalContent({
       images: [
         imageUrl ||
           "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+        ...(hotelToEdit?.images?.slice(1) || []),
       ],
       featured,
       status,
@@ -431,13 +432,26 @@ function HotelModalContent({
                 </span>
               )}
             </div>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/... or /uploads/hotels/..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
-            />
+            {imageUrl.startsWith("data:") ? (
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-900 text-xs font-semibold">
+                <span>Uploaded Property Photos Active ({hotelToEdit?.images?.length || 1} photos saved)</span>
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="text-[11px] text-emerald-700 hover:underline font-bold"
+                >
+                  Use External URL Instead
+                </button>
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://images.unsplash.com/... or /uploads/hotels/..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            )}
           </div>
 
           {/* Description */}
