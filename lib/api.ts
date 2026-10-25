@@ -136,24 +136,29 @@ export async function uploadAdminHotelImages(
     throw new Error("No valid image files were selected.");
   }
 
-  // 1. Try Firebase Storage if configured
+  // Shrink phone/camera photos (often 3-8 MB) to web-sized WebP (~150-400 KB) before uploading.
+  const compressedFiles = await Promise.all(imageFiles.map((f) => compressImageForWeb(f)));
+
+  // 1. Try Firebase Storage if configured (fail fast instead of hanging on SDK retries)
   let storageUrls: string[] = [];
+  let storageError = "";
   if (storage && isFirebaseConfigured) {
     try {
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
+      for (let i = 0; i < compressedFiles.length; i++) {
+        const file = compressedFiles[i];
         const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
         const storageRef = ref(
           storage,
           `hotels/${hotel.slug || hotel.id}/${Date.now()}_${i + 1}_${safeName}`
         );
-        await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(storageRef);
+        await withTimeout(uploadBytes(storageRef, file, { contentType: file.type }), 30000);
+        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 15000);
         storageUrls.push(downloadUrl);
-        onProgress?.(i + 1, imageFiles.length);
+        onProgress?.(i + 1, compressedFiles.length);
       }
     } catch (storageErr) {
       console.warn("Direct Firebase Storage upload unavailable, switching to API:", storageErr);
+      storageError = storageErr instanceof Error ? storageErr.message : String(storageErr);
       storageUrls = [];
     }
   }
@@ -169,34 +174,79 @@ export async function uploadAdminHotelImages(
     return { success: true, images: finalImages, hotel: updatedHotel };
   }
 
-  // 2. Direct API Fallback to Next.js /api/upload
+  // 2. Fallback to Next.js /api/upload (only works where the server has a writable disk, e.g. localhost)
   const formData = new FormData();
   formData.append("hotelId", hotel.id);
   formData.append("hotelSlug", hotel.slug || hotel.id);
   formData.append("replaceAll", replaceAll ? "true" : "false");
-  imageFiles.forEach((file) => formData.append("files", file));
+  compressedFiles.forEach((file) => formData.append("files", file));
 
-  const res = await fetch(`${USER_API_BASE}/api/upload`, {
-    method: "POST",
-    headers: {
-      "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
-    },
-    body: formData,
-  });
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 60000);
+  let res: Response;
+  try {
+    res = await fetch(`${USER_API_BASE}/api/upload`, {
+      method: "POST",
+      headers: {
+        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    throw new Error(
+      `Upload failed. Firebase Storage is not ready${storageError ? ` (${storageError})` : ""}, and the server fallback could not be reached.`
+    );
+  } finally {
+    clearTimeout(abortTimer);
+  }
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Upload failed with HTTP ${res.status}`);
+    throw new Error(
+      `${errData.error || `Upload failed with HTTP ${res.status}`}. Firebase Storage must be enabled for uploads on the live site.`
+    );
   }
 
   const data = await res.json();
+  const uploadedUrls: string[] = data.savedUrls || [];
+  const finalImages = replaceAll
+    ? uploadedUrls
+    : [...(hotel.images || []).filter((img) => !img.includes("unsplash.com")), ...uploadedUrls];
+  const updatedHotel: Hotel = data.hotel || { ...hotel, images: finalImages };
+  await saveAdminHotel(updatedHotel);
   broadcastSync("REFRESH_ALL");
 
-  return {
-    success: true,
-    images: data.images || data.savedUrls || [],
-    hotel: data.hotel,
-  };
+  return { success: true, images: updatedHotel.images, hotel: updatedHotel };
+}
+
+/**
+ * Resize an image in the browser to max 1600px and re-encode as WebP.
+ * Falls back to the original file if the browser cannot decode it (e.g. HEIC).
+ */
+async function compressImageForWeb(file: File, maxDim = 1600, quality = 0.82): Promise<File> {
+  if (typeof window === "undefined" || typeof createImageBitmap !== "function") return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/webp", quality)
+    );
+    if (!blob || blob.size >= file.size) return file;
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
 }
 
 // ----------------- INQUIRIES / LEADS -----------------

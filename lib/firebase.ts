@@ -26,6 +26,9 @@ if (typeof window !== "undefined" || isFirebaseConfigured) {
       app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
       db = getFirestore(app);
       storage = getStorage(app);
+      // Fail fast (default SDK retry window is 10 minutes, which looks like an endless spinner)
+      storage.maxUploadRetryTime = 20000;
+      storage.maxOperationRetryTime = 15000;
     }
   } catch (error) {
     console.warn("Firebase initialization in Admin skipped:", error);
