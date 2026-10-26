@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
+import { KeyRound, Eye, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
 
 interface AdminLoginProps {
   onSuccess: () => void;

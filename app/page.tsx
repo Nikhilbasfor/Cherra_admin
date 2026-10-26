@@ -34,7 +34,6 @@ import AdminLogin from "@/components/AdminLogin";
 import HotelCSVModal from "@/components/HotelCSVModal";
 import {
   INITIAL_HOTELS,
-  INITIAL_LEADS,
   INITIAL_ATTRACTIONS,
   INITIAL_FAQS,
   INITIAL_STATS,
@@ -145,19 +144,17 @@ export default function AdminDashboard() {
       }
     });
 
-    // 2. Periodic poll for other resources
+    // 2. Initial & periodic sync for other resources
     const fetchLatest = async () => {
       try {
-        const [hList, iList, aList, fList, sData] = await Promise.all([
+        const [hList, aList, fList, sData] = await Promise.all([
           fetchAdminHotels(),
-          fetchAdminInquiries(),
           fetchAdminAttractions(),
           fetchAdminFAQs(),
           fetchAdminStats(),
         ]);
         if (isMounted) {
           if (hList && hList.length > 0) setHotels(hList);
-          if (Array.isArray(iList)) setLeads(iList);
           if (aList && aList.length > 0) setAttractions(aList);
           if (fList && fList.length > 0) setFaqs(fList);
           if (sData) setStats(sData);
@@ -168,7 +165,7 @@ export default function AdminDashboard() {
     };
 
     fetchLatest();
-    const interval = setInterval(fetchLatest, 10000);
+    const interval = setInterval(fetchLatest, 60000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -198,9 +195,10 @@ export default function AdminDashboard() {
       setHotels(remainingHotels);
       await deleteAdminHotel(hotelId);
 
+      const activeCount = remainingHotels.filter((h) => h.status !== "inactive").length;
       const updatedStats = {
         ...stats,
-        verifiedStays: remainingHotels.length > 0 ? `${remainingHotels.length}+` : "0",
+        verifiedStays: activeCount > 0 ? `${activeCount}+` : "0",
       };
       setStats(updatedStats);
       await saveAdminStats(updatedStats);
@@ -220,10 +218,12 @@ export default function AdminDashboard() {
     });
     await saveAdminHotel(saved);
 
-    const count = nextHotels.length > 0 ? nextHotels.length : hotels.length;
+    const activeCount = (nextHotels.length > 0 ? nextHotels : hotels).filter(
+      (h) => h.status !== "inactive"
+    ).length;
     const updatedStats = {
       ...stats,
-      verifiedStays: `${count}+`,
+      verifiedStays: `${activeCount}+`,
     };
     setStats(updatedStats);
     await saveAdminStats(updatedStats);
@@ -241,9 +241,10 @@ export default function AdminDashboard() {
       }
     }
     setHotels(currentHotels);
+    const activeCount = currentHotels.filter((h) => h.status !== "inactive").length;
     const updatedStats = {
       ...stats,
-      verifiedStays: `${currentHotels.length}+`,
+      verifiedStays: `${activeCount}+`,
     };
     setStats(updatedStats);
     await saveAdminStats(updatedStats);
@@ -1237,7 +1238,7 @@ export default function AdminDashboard() {
                     C
                   </div>
                   <div className="text-[11px] text-slate-700">
-                    <span>https://cherrapunjistays.com</span>
+                    <span>https://resortsincherrapunji.com</span>
                     <span className="text-slate-400 ml-1">› hotels › cherrapunji</span>
                   </div>
                 </div>

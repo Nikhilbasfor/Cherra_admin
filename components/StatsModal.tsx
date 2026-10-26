@@ -19,6 +19,9 @@ export default function StatsModal({
   currentStats,
   hotelCount,
 }: StatsModalProps) {
+  const [verifiedStays, setVerifiedStays] = useState(
+    currentStats.verifiedStays || (hotelCount ? `${hotelCount}+` : "60+")
+  );
   const [satisfactionRate, setSatisfactionRate] = useState(
     currentStats.satisfactionRate || "4.8 / 5.0"
   );
@@ -28,17 +31,18 @@ export default function StatsModal({
   );
 
   useEffect(() => {
+    setVerifiedStays(currentStats.verifiedStays || (hotelCount ? `${hotelCount}+` : "60+"));
     setSatisfactionRate(currentStats.satisfactionRate || "4.8 / 5.0");
     setTariffPledge(currentStats.tariffPledge || "100%");
     setAvgResponseTime(currentStats.avgResponseTime || "20 Min");
-  }, [currentStats, isOpen]);
+  }, [currentStats, hotelCount, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      verifiedStays: currentStats.verifiedStays || (hotelCount ? `${hotelCount}+` : "6+"),
+      verifiedStays: verifiedStays.trim() || (hotelCount ? `${hotelCount}+` : "60+"),
       satisfactionRate: satisfactionRate.trim() || "4.8 / 5.0",
       tariffPledge: tariffPledge.trim() || "100%",
       avgResponseTime: avgResponseTime.trim() || "20 Min",
@@ -74,19 +78,30 @@ export default function StatsModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs">
-          {/* Automatic Inventory Status Banner */}
-          <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/70 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                Live Hotel Inventory
-              </span>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                {currentStats.verifiedStays || (hotelCount ? `${hotelCount}+` : "6+")} Verified Stays
-              </p>
+          {/* Verified Stays Counter Input */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-slate-700">
+                Verified Stays Counter
+              </label>
+              {hotelCount !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => setVerifiedStays(`${hotelCount}+`)}
+                  className="text-[10px] font-semibold text-emerald-700 hover:underline cursor-pointer"
+                >
+                  Sync with Inventory ({hotelCount}+)
+                </button>
+              )}
             </div>
-            <span className="text-[10px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
-              ⚡ Auto-Managed
-            </span>
+            <input
+              type="text"
+              required
+              value={verifiedStays}
+              onChange={(e) => setVerifiedStays(e.target.value)}
+              placeholder="e.g. 66+ or 70+"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-emerald-600 focus:bg-white"
+            />
           </div>
 
           <div>

@@ -1,7 +1,6 @@
 import { Hotel, InquiryLead, Attraction, FAQItem, SiteStats } from "./types";
-import { INITIAL_HOTELS, INITIAL_LEADS, INITIAL_ATTRACTIONS, INITIAL_FAQS, INITIAL_STATS } from "./initialData";
-import { db, storage, isFirebaseConfigured } from "./firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { INITIAL_HOTELS, INITIAL_ATTRACTIONS, INITIAL_FAQS, INITIAL_STATS } from "./initialData";
+import { db, isFirebaseConfigured } from "./firebase";
 import {
   collection,
   getDocs,
@@ -19,6 +18,11 @@ const USER_API_BASE =
     ? "https://resortsincherrapunji.com"
     : "http://localhost:3000");
 
+const ADMIN_API_KEY =
+  process.env.NEXT_PUBLIC_ADMIN_API_KEY ||
+  process.env.ADMIN_API_KEY ||
+  "cherra_admin_secret_2026";
+
 function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
   return Promise.race([
     promise,
@@ -26,16 +30,6 @@ function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
       setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms)
     ),
   ]);
-}
-
-export function broadcastSync(type: string, payload?: unknown) {
-  if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-    try {
-      const channel = new BroadcastChannel("cherra_realtime_sync");
-      channel.postMessage({ type, payload });
-      channel.close();
-    } catch {}
-  }
 }
 
 // ----------------- HOTELS -----------------
@@ -55,7 +49,10 @@ export async function fetchAdminHotels(): Promise<Hotel[]> {
   }
 
   try {
-    const res = await fetch(`${USER_API_BASE}/api/hotels`, { cache: "no-store" });
+    const res = await fetch(`${USER_API_BASE}/api/hotels?includeInactive=true`, {
+      cache: "no-store",
+      headers: { "x-admin-key": ADMIN_API_KEY },
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;
@@ -68,7 +65,6 @@ export async function fetchAdminHotels(): Promise<Hotel[]> {
 }
 
 export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
-  broadcastSync("REFRESH_ALL");
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(setDoc(doc(db, "hotels", hotel.id), hotel, { merge: true }), 15000);
@@ -82,7 +78,7 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
       body: JSON.stringify(hotel),
     });
@@ -94,7 +90,6 @@ export async function saveAdminHotel(hotel: Hotel): Promise<Hotel> {
 }
 
 export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
-  broadcastSync("REFRESH_ALL");
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(deleteDoc(doc(db, "hotels", hotelId)), 2500);
@@ -107,7 +102,7 @@ export async function deleteAdminHotel(hotelId: string): Promise<boolean> {
     await fetch(`${USER_API_BASE}/api/hotels/${hotelId}`, {
       method: "DELETE",
       headers: {
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
     });
   } catch (err) {
@@ -155,38 +150,8 @@ export async function uploadAdminHotelImages(
   const finalImages = [...existingKept, ...webpDataUrls];
   const updatedHotel: Hotel = { ...hotel, images: finalImages };
   await saveAdminHotel(updatedHotel);
-  broadcastSync("REFRESH_ALL");
 
   return { success: true, images: finalImages, hotel: updatedHotel };
-}
-
-/**
- * Resize an image in the browser to max 1600px and re-encode as WebP.
- * Falls back to the original file if the browser cannot decode it (e.g. HEIC).
- */
-async function compressImageForWeb(file: File, maxDim = 1600, quality = 0.82): Promise<File> {
-  if (typeof window === "undefined" || typeof createImageBitmap !== "function") return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close?.();
-    const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob((b) => resolve(b), "image/webp", quality)
-    );
-    if (!blob || blob.size >= file.size) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, "");
-    return new File([blob], `${baseName}.webp`, { type: "image/webp" });
-  } catch {
-    return file;
-  }
 }
 
 /**
@@ -323,7 +288,7 @@ export async function fetchAdminInquiries(): Promise<InquiryLead[]> {
     const res = await fetch(`${USER_API_BASE}/api/inquiries`, {
       cache: "no-store",
       headers: {
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
     });
     if (res.ok) {
@@ -379,7 +344,7 @@ export async function updateAdminInquiry(inquiry: InquiryLead): Promise<InquiryL
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
       body: JSON.stringify(inquiry),
     });
@@ -433,7 +398,7 @@ export async function saveAdminAttraction(attraction: Attraction): Promise<Attra
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
       body: JSON.stringify(attraction),
     });
@@ -457,7 +422,7 @@ export async function deleteAdminAttraction(attractionId: string): Promise<boole
     await fetch(`${USER_API_BASE}/api/attractions/${attractionId}`, {
       method: "DELETE",
       headers: {
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
     });
   } catch (err) {
@@ -510,7 +475,7 @@ export async function saveAdminFAQ(faq: FAQItem): Promise<FAQItem> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
       body: JSON.stringify(faq),
     });
@@ -534,7 +499,7 @@ export async function deleteAdminFAQ(faqId: string): Promise<boolean> {
     await fetch(`${USER_API_BASE}/api/faqs/${faqId}`, {
       method: "DELETE",
       headers: {
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
     });
   } catch (err) {
@@ -573,7 +538,6 @@ export async function fetchAdminStats(): Promise<SiteStats> {
 }
 
 export async function saveAdminStats(stats: SiteStats): Promise<SiteStats> {
-  broadcastSync("STATS_UPDATED", stats);
   if (db && isFirebaseConfigured) {
     try {
       await withTimeout(setDoc(doc(db, "site_stats", "main"), stats, { merge: true }), 2500);
@@ -587,7 +551,7 @@ export async function saveAdminStats(stats: SiteStats): Promise<SiteStats> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-key": process.env.ADMIN_API_KEY || "cherra_admin_secret_2026",
+        "x-admin-key": ADMIN_API_KEY,
       },
       body: JSON.stringify(stats),
     });

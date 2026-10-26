@@ -1,8 +1,8 @@
-import { Hotel, InquiryLead, Attraction, FAQItem, SiteStats } from "./types";
+import { Hotel, Attraction, FAQItem, SiteStats } from "./types";
 
 export const INITIAL_HOTELS: Hotel[] = [];
 
-export const INITIAL_LEADS: InquiryLead[] = [];
+
 
 export const INITIAL_ATTRACTIONS: Attraction[] = [
   {

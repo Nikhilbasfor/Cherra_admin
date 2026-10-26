@@ -74,6 +74,7 @@ function HotelModalContent({
   const [amenities, setAmenities] = useState<string[]>(
     hotelToEdit?.amenities || ["Free High-Speed Wi-Fi", "Geyser / 24hr Hot Water", "Private Balcony"]
   );
+  const [customAmenity, setCustomAmenity] = useState("");
   const [checkInTime, setCheckInTime] = useState(hotelToEdit?.checkInTime || "14:00");
   const [checkOutTime, setCheckOutTime] = useState(hotelToEdit?.checkOutTime || "11:00");
   const [phone, setPhone] = useState(hotelToEdit?.phone || "+91 98648 79505");
@@ -138,9 +139,11 @@ function HotelModalContent({
       {
         id: "r-" + Date.now(),
         name: "Executive Room",
-        price: pricePerNight,
+        price: pricePerNight || 3500,
+        originalPrice: originalPrice || Math.round((pricePerNight || 3500) * 1.25),
         capacity: "2 Adults",
         beds: "1 King Bed",
+        sizeSqFt: 350,
         features: ["Canyon View"],
       },
     ]);
@@ -466,10 +469,10 @@ function HotelModalContent({
           </div>
 
           {/* Amenities Checklist */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1.5">Amenities Checklist</label>
+          <div className="space-y-2">
+            <label className="block text-slate-700 font-semibold">Amenities Checklist</label>
             <div className="grid grid-cols-2 gap-1.5">
-              {ALL_AMENITIES.map((item) => {
+              {Array.from(new Set([...ALL_AMENITIES, ...amenities])).map((item) => {
                 const isChecked = amenities.includes(item);
                 return (
                   <button
@@ -493,6 +496,38 @@ function HotelModalContent({
                   </button>
                 );
               })}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={customAmenity}
+                onChange={(e) => setCustomAmenity(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const trimmed = customAmenity.trim();
+                    if (trimmed && !amenities.includes(trimmed)) {
+                      setAmenities((prev) => [...prev, trimmed]);
+                      setCustomAmenity("");
+                    }
+                  }
+                }}
+                placeholder="Add custom amenity (e.g. Room Heater, Campfire)..."
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = customAmenity.trim();
+                  if (trimmed && !amenities.includes(trimmed)) {
+                    setAmenities((prev) => [...prev, trimmed]);
+                    setCustomAmenity("");
+                  }
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs shrink-0"
+              >
+                + Add
+              </button>
             </div>
           </div>
 
@@ -566,44 +601,137 @@ function HotelModalContent({
                 Add Room
               </button>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2.5">
               {rooms.map((room, idx) => (
                 <div
-                  key={idx}
-                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200"
+                  key={room.id || idx}
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2"
                 >
-                  <input
-                    type="text"
-                    value={room.name}
-                    onChange={(e) => {
-                      const newRooms = [...rooms];
-                      newRooms[idx].name = e.target.value;
-                      setRooms(newRooms);
-                    }}
-                    className="bg-transparent text-slate-800 font-medium focus:outline-none flex-1 text-xs"
-                  />
-                  <div className="w-24 flex items-center gap-1">
-                    <span className="text-slate-400">₹</span>
+                  <div className="flex items-center justify-between gap-2">
                     <input
-                      type="number"
-                      value={room.price}
+                      type="text"
+                      value={room.name}
                       onChange={(e) => {
                         const newRooms = [...rooms];
-                        newRooms[idx].price = Number(e.target.value);
+                        newRooms[idx] = { ...newRooms[idx], name: e.target.value };
                         setRooms(newRooms);
                       }}
-                      className="bg-transparent text-emerald-800 font-bold focus:outline-none w-full text-right text-xs"
+                      placeholder="Room category name"
+                      className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-900 font-semibold focus:outline-none focus:border-emerald-600 flex-1 text-xs"
+                    />
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 w-28">
+                      <span className="text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        value={room.price}
+                        onChange={(e) => {
+                          const newRooms = [...rooms];
+                          newRooms[idx] = { ...newRooms[idx], price: Number(e.target.value) };
+                          setRooms(newRooms);
+                        }}
+                        title="Direct Nightly Tariff (₹)"
+                        className="bg-transparent text-emerald-800 font-bold focus:outline-none w-full text-right text-xs"
+                      />
+                    </div>
+                    {rooms.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRoom(idx)}
+                        className="p-1 text-slate-400 hover:text-rose-600"
+                        title="Remove Room"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Capacity</span>
+                      <input
+                        type="text"
+                        value={room.capacity || ""}
+                        onChange={(e) => {
+                          const newRooms = [...rooms];
+                          newRooms[idx] = { ...newRooms[idx], capacity: e.target.value };
+                          setRooms(newRooms);
+                        }}
+                        placeholder="2 Adults"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Beds</span>
+                      <input
+                        type="text"
+                        value={room.beds || ""}
+                        onChange={(e) => {
+                          const newRooms = [...rooms];
+                          newRooms[idx] = { ...newRooms[idx], beds: e.target.value };
+                          setRooms(newRooms);
+                        }}
+                        placeholder="1 King Bed"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Size (sq.ft)</span>
+                      <input
+                        type="number"
+                        value={room.sizeSqFt || ""}
+                        onChange={(e) => {
+                          const newRooms = [...rooms];
+                          newRooms[idx] = {
+                            ...newRooms[idx],
+                            sizeSqFt: e.target.value ? Number(e.target.value) : undefined,
+                          };
+                          setRooms(newRooms);
+                        }}
+                        placeholder="350"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">Orig. Price (₹)</span>
+                      <input
+                        type="number"
+                        value={room.originalPrice || ""}
+                        onChange={(e) => {
+                          const newRooms = [...rooms];
+                          newRooms[idx] = {
+                            ...newRooms[idx],
+                            originalPrice: e.target.value ? Number(e.target.value) : undefined,
+                          };
+                          setRooms(newRooms);
+                        }}
+                        placeholder={String(Math.round(room.price * 1.25))}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] text-slate-400 block mb-0.5">
+                      Room Features (comma-separated)
+                    </span>
+                    <input
+                      type="text"
+                      value={(room.features || []).join(", ")}
+                      onChange={(e) => {
+                        const newRooms = [...rooms];
+                        newRooms[idx] = {
+                          ...newRooms[idx],
+                          features: e.target.value
+                            .split(",")
+                            .map((f) => f.trim())
+                            .filter(Boolean),
+                        };
+                        setRooms(newRooms);
+                      }}
+                      placeholder="Hot Water, Balcony, Canyon View, Electric Kettle"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-800 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
-                  {rooms.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRoom(idx)}
-                      className="p-1 text-slate-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>

@@ -8,7 +8,6 @@ import {
   Download,
   CheckCircle2,
   AlertCircle,
-  Building2,
   RefreshCw,
   Sparkles,
   Info,
